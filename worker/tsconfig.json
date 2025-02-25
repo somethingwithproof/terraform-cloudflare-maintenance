@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
+    "types": ["@cloudflare/workers-types"],
+    "skipLibCheck": true,
     "target": "ES2020",
-    "lib": ["DOM", "ES2020", "WebWorker"],
+    "lib": ["ES2021"],
     "outDir": "dist",
     "moduleResolution": "node",
     "strict": true,
