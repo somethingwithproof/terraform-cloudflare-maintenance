@@ -1,8 +1,8 @@
 package test
 
 import (
-	"testing"
-	"github.com/gruntwork-io/terratest/modules/terraform"
+"testing"
+"github.com/gruntwork-io/terratest/modules/terraform"
 )
 
 func TestMaintenancePageDeployment(t *testing.T) {

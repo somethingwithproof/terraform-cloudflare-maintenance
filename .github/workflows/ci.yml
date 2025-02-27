@@ -31,11 +31,13 @@ jobs:
         run: |
           cd worker
           npm test
+      
+      # Insert Setup Terraform as a separate step
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
 
-      - name: Terraform Init & Validate
+      - name: Terraform
         run: |
-          - name: Setup Terraform
-            uses: hashicorp/setup-terraform@v2
           terraform init
           terraform validate
 

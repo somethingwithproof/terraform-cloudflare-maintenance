@@ -31,3 +31,16 @@ graph TD
 ## Compliance Requirements
 -  GDPR: All logs anonymized
 -  SOC2: Change management via Terraform Cloud
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+    A[User Request] --> B{Maintenance Mode?}
+    B -->|Yes| C[Maintenance Worker]
+    B -->|No| D[Normal Routing]
+```
+
+## Compliance Requirements
+-  GDPR: All logs anonymized
+-  SOC2: Change management via Terraform Cloud
