@@ -1,37 +1,42 @@
-#!/bin/bash
-# upgrade_repo.sh
+#!/usr/bin/env zsh
+# upgrade_repo.zsh
 
-# Define emoji mapping
-declare -A EMOJI=(
-  ["feat"]="✨"
-  ["fix"]="🐛"
-  ["docs"]="📝"
-  ["style"]="🎨"
-  ["refactor"]="♻️"
-  ["test"]="🧪"
-  ["chore"]="🔧"
-  ["ci"]="👷"
+# Define emoji mapping for conventional commits
+typeset -A EMOJI
+EMOJI=(
+  feat        "✨"
+  fix         "🐛"
+  docs        "📝"
+  style       "🎨"
+  refactor    "♻️"
+  test        "🧪"
+  chore       "🔧"
+  ci          "👷"
 )
 
-# Create new structure
+# Create enterprise directory structure
 mkdir -p modules/{maintenance-page,dns-config,firewall-rules} \
          examples/{basic-usage,advanced-config} \
          tests/{integration,unit} \
          .github/workflows
 
-# 1. Security enhancements
-cat <<EOF > variables.tf
+# 1. Security hardening
+{
+  cat <<-EOF
 variable "cloudflare_api_token" {
   description = "Cloudflare API token with least privileges"
   type        = string
   sensitive   = true
 }
 EOF
+} > variables.tf
+
 git add variables.tf
-git commit -m "feat(security): add sensitive variable handling ${EMOJI[feat]}"
+git commit -m "feat(security): add sensitive variable handling $EMOJI[feat]"
 
 # 2. State management
-cat <<EOF > backend.tf
+{
+  cat <<-EOF
 terraform {
   backend "remote" {
     organization = "your-org"
@@ -41,11 +46,14 @@ terraform {
   }
 }
 EOF
+} > backend.tf
+
 git add backend.tf
-git commit -m "feat(state): implement remote state management ${EMOJI[feat]}"
+git commit -m "feat(state): implement remote state management $EMOJI[feat]"
 
 # 3. CI/CD pipeline
-cat <<EOF > .github/workflows/compliance.yml
+{
+  cat <<-EOF
 name: Terraform Compliance
 on: [pull_request]
 jobs:
@@ -56,12 +64,17 @@ jobs:
       - run: terraform validate
       - run: terraform fmt -check
 EOF
-git add .github/workflows/compliance.yml
-git commit -m "ci(pipelines): add validation workflow ${EMOJI[ci]}"
+} > .github/workflows/compliance.yml
 
-# 4. Documentation update
-cat <<EOF >> README.md
+git add .github/workflows/compliance.yml
+git commit -m "ci(pipelines): add validation workflow $EMOJI[ci]"
+
+# 4. Documentation updates
+{
+  cat <<-EOF
+
 ## Architecture Diagram
+
 \`\`\`mermaid
 graph TD
     A[User Request] --> B{Maintenance Mode?}
@@ -73,11 +86,14 @@ graph TD
 -  GDPR: All logs anonymized
 -  SOC2: Change management via Terraform Cloud
 EOF
+} >> README.md
+
 git add README.md
-git commit -m "docs(architecture): add system diagram and compliance ${EMOJI[docs]}"
+git commit -m "docs(architecture): add system diagram and compliance $EMOJI[docs]"
 
 # 5. Testing framework
-cat <<EOF > tests/integration/maintenance_test.go
+{
+  cat <<-EOF
 package test
 
 import (
@@ -93,11 +109,14 @@ func TestMaintenancePageDeployment(t *testing.T) {
     terraform.InitAndApply(t, terraformOptions)
 }
 EOF
+} > tests/integration/maintenance_test.go
+
 git add tests/integration/maintenance_test.go
-git commit -m "test(integration): add go test framework ${EMOJI[test]}"
+git commit -m "test(integration): add go test framework $EMOJI[test]"
 
 # 6. Version constraints
-cat <<EOF > versions.tf
+{
+  cat <<-EOF
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
@@ -108,14 +127,15 @@ terraform {
   }
 }
 EOF
+} > versions.tf
+
 git add versions.tf
-git commit -m "chore(deps): pin terraform versions ${EMOJI[chore]}"
+git commit -m "chore(deps): pin terraform versions $EMOJI[chore]"
 
 # Final formatting
 terraform fmt -recursive
 git add .
-git commit -m "style(format): apply terraform fmt ${EMOJI[style]}"
+git commit -m "style(format): apply terraform fmt $EMOJI[style]"
 
-echo "Repository upgrade complete! Push changes with:"
-echo "git push origin main"
-
+print -P "%F{green}Repository upgrade complete! Push changes with:%f"
+print -P "%F{blue}git push origin main%f"
