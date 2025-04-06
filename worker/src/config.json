@@ -1,0 +1,9 @@
+{
+  "enabled": false,
+  "maintenance_title": "System Maintenance in Progress",
+  "contact_email": "support@example.com",
+  "allowed_ips": "[]",
+  "maintenance_window": null,
+  "custom_css": "",
+  "logo_url": ""
+}

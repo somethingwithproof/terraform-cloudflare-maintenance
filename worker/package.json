@@ -5,10 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "echo 'TODO: add tests here' && exit 0"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250404.0",
-    "typescript": "^5.7.3"
+    "@vitest/coverage-v8": "^1.4.0",
+    "typescript": "^5.7.3",
+    "vitest": "^1.4.0"
   }
 }

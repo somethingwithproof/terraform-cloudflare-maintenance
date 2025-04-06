@@ -3,14 +3,15 @@
     "types": ["@cloudflare/workers-types"],
     "skipLibCheck": true,
     "target": "ES2020",
-    "lib": ["ES2021"],
+    "lib": ["ES2021", "WebWorker", "DOM"],
     "outDir": "dist",
     "moduleResolution": "node",
     "strict": true,
     "module": "ES2020",
     "isolatedModules": true,
     "esModuleInterop": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.json"]
 }
