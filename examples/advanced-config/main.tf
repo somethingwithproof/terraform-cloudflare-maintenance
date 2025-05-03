@@ -37,7 +37,7 @@ module "maintenance" {
 resource "cloudflare_record" "maintenance_status" {
   zone_id = var.cloudflare_zone_id
   name    = "status"
-  value   = "100::" # IPv6 placeholder for Worker routes
+  content = "100::" # IPv6 placeholder for Worker routes
   type    = "AAAA"
   proxied = true
   ttl     = 1

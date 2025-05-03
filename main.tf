@@ -73,14 +73,14 @@ resource "cloudflare_workers_kv_namespace" "maintenance_config" {
 
 # Optional: Create a custom hostname for the maintenance page
 resource "cloudflare_record" "maintenance" {
-  count   = var.enabled ? 1 : 0
-  zone_id = var.cloudflare_zone_id
-  name    = "maintenance"
-  value   = "100::" # IPv6 placeholder for Worker routes
-  type    = "AAAA"
-  proxied = true
-  ttl     = 1 # Auto
-  comment = "Maintenance page DNS record"
+  count    = var.enabled ? 1 : 0
+  zone_id  = var.cloudflare_zone_id
+  name     = "maintenance"
+  content  = "100::"  # IPv6 placeholder for Worker routes
+  type     = "AAAA"
+  proxied  = true
+  ttl      = 1        # Auto
+  comment  = "Maintenance page DNS record"
 }
 
 # Optional: Create a firewall rule to bypass maintenance for allowed IPs
