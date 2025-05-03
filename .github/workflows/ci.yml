@@ -1,49 +1,31 @@
-# Placeholder comment for Issue #5
-name: "CI"
+name: CI
 on:
-  pull_request:
-    branches: [ "main" ]
   push:
-    branches: [ "main" ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up Node
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - uses: hashicorp/setup-terraform@v2
         with:
-          node-version: "16"
-
-      - name: Install and Build Worker
-        run: |
-          cd worker
-          npm install
-          npm run build
-
-      - name: Test Worker
-        run: |
-          cd worker
-          npm test
-      
-      # Insert Setup Terraform as a separate step
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform
-        run: |
-          terraform init
-          terraform validate
-
-      # (Optional) Terraform Plan
-      # - name: Terraform Plan
-      #   run: terraform plan
-
-      - name: Code Coverage Placeholder
-        run: echo "Collect coverage here (e.g., Jest, c8, nyc, coverage reports, etc.)"
+          terraform_version: 1.5.0
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+      - name: Terraform Validate
+        run: terraform validate
+  
+  test-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: cd worker && npm ci
+      - name: Run tests
+        run: cd worker && npm test

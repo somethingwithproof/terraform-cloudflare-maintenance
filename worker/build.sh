@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "\$(dirname "\$0")"
+cd "$(dirname "$0")"
 
 echo "Building Cloudflare Worker..."
 npm install
@@ -12,5 +12,5 @@ if [ ! -f "dist/index.js" ]; then
   exit 1
 fi
 
-SCRIPT_CONTENT=\$(cat dist/index.js | base64 | tr -d '\\n')
-echo "{\"script\":\"\$(echo \$SCRIPT_CONTENT | base64 --decode | jq -sR)\"}"
+SCRIPT_CONTENT=$(cat dist/index.js | base64 | tr -d '\n')
+echo "{\"script\":\"$(echo $SCRIPT_CONTENT | base64 --decode | jq -sR)\"}"

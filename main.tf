@@ -52,7 +52,7 @@ resource "cloudflare_worker_script" "maintenance" {
 
   # Add analytics
   analytics_engine_binding {
-    name = "MAINTENANCE_ANALYTICS"
+    name    = "MAINTENANCE_ANALYTICS"
     dataset = "maintenance_events"
   }
 }
@@ -66,21 +66,21 @@ resource "cloudflare_worker_route" "maintenance_route" {
 
 # Optional: Create a KV namespace for configuration
 resource "cloudflare_workers_kv_namespace" "maintenance_config" {
-  count       = var.enabled ? 1 : 0
-  account_id  = var.cloudflare_account_id
-  title       = "maintenance_config"
+  count      = var.enabled ? 1 : 0
+  account_id = var.cloudflare_account_id
+  title      = "maintenance_config"
 }
 
 # Optional: Create a custom hostname for the maintenance page
 resource "cloudflare_record" "maintenance" {
-  count    = var.enabled ? 1 : 0
-  zone_id  = var.cloudflare_zone_id
-  name     = "maintenance"
-  value    = "100::"  # IPv6 placeholder for Worker routes
-  type     = "AAAA"
-  proxied  = true
-  ttl      = 1        # Auto
-  comment  = "Maintenance page DNS record"
+  count   = var.enabled ? 1 : 0
+  zone_id = var.cloudflare_zone_id
+  name    = "maintenance"
+  value   = "100::" # IPv6 placeholder for Worker routes
+  type    = "AAAA"
+  proxied = true
+  ttl     = 1 # Auto
+  comment = "Maintenance page DNS record"
 }
 
 # Optional: Create a firewall rule to bypass maintenance for allowed IPs

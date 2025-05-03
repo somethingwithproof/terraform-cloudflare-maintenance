@@ -1,6 +1,6 @@
 terraform {
   backend "remote" {
-    organization = "your-org"
+    organization = "example-org"
     workspaces {
       name = "cloudflare-maintenance"
     }

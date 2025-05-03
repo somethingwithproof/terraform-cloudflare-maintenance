@@ -1,141 +1,108 @@
-#!/usr/bin/env zsh
-# upgrade_repo.zsh
+#!/usr/bin/env bash
+# fix.sh - Script to fix issues in the terraform-cloudflare-maintenance repository
+
+set -euo pipefail
 
 # Define emoji mapping for conventional commits
-typeset -A EMOJI
+declare -A EMOJI
 EMOJI=(
-  feat        "✨"
-  fix         "🐛"
-  docs        "📝"
-  style       "🎨"
-  refactor    "♻️"
-  test        "🧪"
-  chore       "🔧"
-  ci          "👷"
+  ["feat"]="✨"
+  ["fix"]="🐛"
+  ["docs"]="📝"
+  ["style"]="🎨"
+  ["refactor"]="♻️"
+  ["test"]="🧪"
+  ["chore"]="🔧"
+  ["ci"]="👷"
 )
 
-# Create enterprise directory structure
-mkdir -p modules/{maintenance-page,dns-config,firewall-rules} \
-         examples/{basic-usage,advanced-config} \
-         tests/{integration,unit} \
-         .github/workflows
+echo "🔍 Checking for issues in the repository..."
 
-# 1. Security hardening
-{
-  cat <<-EOF
-variable "cloudflare_api_token" {
-  description = "Cloudflare API token with least privileges"
-  type        = string
-  sensitive   = true
-}
-EOF
-} > variables.tf
+# 1. Fix worker build script permissions
+echo "🔧 Fixing worker build script permissions..."
+chmod +x worker/build.sh
+git add worker/build.sh
+git commit -m "fix(worker): make build script executable ${EMOJI[fix]}"
 
-git add variables.tf
-git commit -m "feat(security): add sensitive variable handling $EMOJI[feat]"
-
-# 2. State management
-{
-  cat <<-EOF
-terraform {
-  backend "remote" {
-    organization = "your-org"
-    workspaces {
-      name = "cloudflare-maintenance"
-    }
-  }
-}
-EOF
-} > backend.tf
-
+# 2. Update backend configuration
+echo "🔄 Updating backend configuration..."
+sed -i '' 's/your-org/example-org/g' backend.tf
 git add backend.tf
-git commit -m "feat(state): implement remote state management $EMOJI[feat]"
+git commit -m "fix(config): update backend organization name ${EMOJI[fix]}"
 
-# 3. CI/CD pipeline
-{
-  cat <<-EOF
-name: Terraform Compliance
-on: [pull_request]
+# 3. Update worker dependencies
+echo "📦 Updating worker dependencies..."
+cd worker
+npm update
+git add package.json package-lock.json
+cd ..
+git commit -m "chore(deps): update worker dependencies ${EMOJI[chore]}"
+
+# 4. Create GitHub workflow directory if it doesn't exist
+if [ ! -d ".github/workflows" ]; then
+  echo "📁 Creating GitHub workflows directory..."
+  mkdir -p .github/workflows
+  
+  # Add CI workflow
+  cat > .github/workflows/ci.yml << EOF
+name: CI
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - uses: hashicorp/setup-terraform@v2
-      - run: terraform validate
-      - run: terraform fmt -check
+        with:
+          terraform_version: 1.5.0
+      - name: Terraform Format
+        run: terraform fmt -check -recursive
+      - name: Terraform Validate
+        run: terraform validate
+  
+  test-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: cd worker && npm ci
+      - name: Run tests
+        run: cd worker && npm test
 EOF
-} > .github/workflows/compliance.yml
+  
+  git add .github/workflows/ci.yml
+  git commit -m "ci(workflow): add GitHub Actions workflow ${EMOJI[ci]}"
+fi
 
-git add .github/workflows/compliance.yml
-git commit -m "ci(pipelines): add validation workflow $EMOJI[ci]"
+# 5. Ensure go.mod exists for tests
+if [ ! -f "tests/integration/go.mod" ]; then
+  echo "🧪 Setting up Go module for tests..."
+  mkdir -p tests/integration
+  cat > tests/integration/go.mod << EOF
+module github.com/thomasvincent/terraform-cloudflare-maintenance/tests/integration
 
-# 4. Documentation updates
-{
-  cat <<-EOF
+go 1.20
 
-## Architecture Diagram
-
-\`\`\`mermaid
-graph TD
-    A[User Request] --> B{Maintenance Mode?}
-    B -->|Yes| C[Maintenance Worker]
-    B -->|No| D[Normal Routing]
-\`\`\`
-
-## Compliance Requirements
--  GDPR: All logs anonymized
--  SOC2: Change management via Terraform Cloud
+require github.com/gruntwork-io/terratest v0.43.0
 EOF
-} >> README.md
+  
+  git add tests/integration/go.mod
+  git commit -m "test(integration): add Go module file ${EMOJI[test]}"
+fi
 
-git add README.md
-git commit -m "docs(architecture): add system diagram and compliance $EMOJI[docs]"
-
-# 5. Testing framework
-{
-  cat <<-EOF
-package test
-
-import (
-	"testing"
-	"github.com/gruntwork-io/terratest/modules/terraform"
-)
-
-func TestMaintenancePageDeployment(t *testing.T) {
-    terraformOptions := &terraform.Options{
-        TerraformDir: "../examples/basic-usage",
-    }
-    defer terraform.Destroy(t, terraformOptions)
-    terraform.InitAndApply(t, terraformOptions)
-}
-EOF
-} > tests/integration/maintenance_test.go
-
-git add tests/integration/maintenance_test.go
-git commit -m "test(integration): add go test framework $EMOJI[test]"
-
-# 6. Version constraints
-{
-  cat <<-EOF
-terraform {
-  required_version = ">= 1.5.0"
-  required_providers {
-    cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 4.0"
-    }
-  }
-}
-EOF
-} > versions.tf
-
-git add versions.tf
-git commit -m "chore(deps): pin terraform versions $EMOJI[chore]"
-
-# Final formatting
+# 6. Apply terraform formatting
+echo "🎨 Applying terraform formatting..."
 terraform fmt -recursive
 git add .
-git commit -m "style(format): apply terraform fmt $EMOJI[style]"
+git commit -m "style(format): apply terraform fmt ${EMOJI[style]}"
 
-print -P "%F{green}Repository upgrade complete! Push changes with:%f"
-print -P "%F{blue}git push origin main%f"
+echo "✅ Repository fixes complete!"
+echo "📝 You can now push the changes with: git push origin main"

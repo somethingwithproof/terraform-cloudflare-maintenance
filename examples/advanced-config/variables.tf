@@ -18,7 +18,7 @@ variable "environment" {
   description = "Deployment environment (e.g., production, staging, development)"
   type        = string
   default     = "development"
-  
+
   validation {
     condition     = contains(["production", "staging", "development"], var.environment)
     error_message = "Environment must be one of: production, staging, development."
@@ -40,7 +40,7 @@ variable "monitoring_ips" {
 variable "maintenance_start_time" {
   description = "Start time of the maintenance window in RFC3339 format"
   type        = string
-  
+
   validation {
     condition     = can(formatdate("RFC3339", var.maintenance_start_time))
     error_message = "Maintenance start time must be in RFC3339 format (e.g., 2025-04-06T08:00:00Z)."
@@ -50,7 +50,7 @@ variable "maintenance_start_time" {
 variable "maintenance_end_time" {
   description = "End time of the maintenance window in RFC3339 format"
   type        = string
-  
+
   validation {
     condition     = can(formatdate("RFC3339", var.maintenance_end_time))
     error_message = "Maintenance end time must be in RFC3339 format (e.g., 2025-04-06T10:00:00Z)."
