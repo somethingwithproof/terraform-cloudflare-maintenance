@@ -17,6 +17,16 @@ jobs:
         run: terraform fmt -check -recursive
       - name: Terraform Validate
         run: terraform validate
+      
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v3
+        with:
+          tflint_version: v0.46.1
+      - name: Run TFLint
+        run: tflint --recursive
+      
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.0
   
   test-worker:
     runs-on: ubuntu-latest
