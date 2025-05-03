@@ -15,6 +15,8 @@ jobs:
           terraform_version: 1.7.0
       - name: Terraform Format
         run: terraform fmt -check -recursive
+      - name: Terraform Init
+        run: terraform init -backend=false
       - name: Terraform Validate
         run: terraform validate
       
@@ -36,6 +38,6 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: cd worker && npm ci
+        run: cd worker && npm ci --legacy-peer-deps
       - name: Run tests
         run: cd worker && npm test
