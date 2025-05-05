@@ -11,7 +11,6 @@ resource "random_password" "api_key" {
 }
 
 locals {
-  is_production = var.environment == "production"
   worker_vars = {
     enabled           = var.enabled
     maintenance_title = var.maintenance_title
@@ -136,23 +135,17 @@ resource "cloudflare_rate_limit" "maintenance_rate_limit" {
   zone_id     = var.cloudflare_zone_id
   threshold   = var.rate_limit.threshold
   period      = var.rate_limit.period
-  description = "Rate limiting for maintenance page"
   
-  match {
-    request {
+  match = {
+    request = {
       url_pattern = "maintenance.${trimsuffix(trimprefix(var.worker_route, "*."), "/*")}/*"
       schemes     = ["HTTP", "HTTPS"]
       methods     = ["GET"]
     }
   }
   
-  action {
+  action = {
     mode    = var.rate_limit.action
     timeout = 300
-  }
-
-  disabled = false
-  correlate {
-    by = "ip"
   }
 }

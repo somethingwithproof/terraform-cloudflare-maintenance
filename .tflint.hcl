@@ -3,16 +3,7 @@ plugin "terraform" {
   preset  = "recommended"
 }
 
-plugin "aws" {
-  enabled = false
-}
-
-plugin "cloudflare" {
-  enabled = true
-  source  = "github.com/terraform-linters/tflint-ruleset-cloudflare"
-  version = "0.4.0"
-}
-
+# Basic rules that are always useful
 rule "terraform_comment_syntax" {
   enabled = true
 }

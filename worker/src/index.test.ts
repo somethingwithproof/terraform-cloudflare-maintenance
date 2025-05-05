@@ -1,4 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock security module
+vi.mock('./security', () => ({
+  applySecurityHeaders: vi.fn(response => response),
+  isBot: vi.fn().mockReturnValue(false),
+  createBotResponse: vi.fn()
+}));
+
+// Mock API module
+vi.mock('./api', () => ({
+  handleApiRequest: vi.fn()
+}));
+
 import { handleRequest, isAllowedIP, isWithinMaintenanceWindow, detectLanguage } from './index';
 
 // Mock the translations
@@ -27,19 +40,22 @@ vi.mock('./translations', () => ({
 }));
 
 // Mock the config
-vi.mock('./config.json', () => ({
-  default: {
-    enabled: true,
-    maintenance_title: 'Test Maintenance',
-    contact_email: 'test@example.com',
-    allowed_ips: '["192.168.1.1"]',
-    maintenance_window: null,
-    custom_css: '',
-    logo_url: '',
-    environment: 'dev',
-    maintenance_language: 'en'
-  }
-}));
+vi.mock('./config.json', async () => {
+  const actual = await vi.importActual<typeof import('./index')>("./index");
+  return {
+    default: {
+      enabled: true,
+      maintenance_title: 'Test Maintenance',
+      contact_email: 'test@example.com',
+      allowed_ips: JSON.stringify(["192.168.1.1"]),
+      maintenance_window: null,
+      custom_css: '',
+      logo_url: '',
+      environment: 'dev',
+      maintenance_language: 'en'
+    }
+  };
+});
 
 describe('Maintenance Worker', () => {
   // Mock fetch
@@ -101,9 +117,10 @@ describe('Maintenance Worker', () => {
     });
     
     it('should pass through requests when maintenance is disabled', async () => {
-      // Override the mock to disable maintenance
-      vi.mock('./config.json', () => ({
-        default: {
+      // Temporarily modify the config for this test
+      const originalConfig = vi.mocked('./config.json', true).default;
+      Object.defineProperty(vi.mocked('./config.json', true), 'default', {
+        value: {
           enabled: false,
           maintenance_title: 'Test Maintenance',
           contact_email: 'test@example.com',
@@ -113,8 +130,9 @@ describe('Maintenance Worker', () => {
           logo_url: '',
           environment: 'dev',
           maintenance_language: 'en'
-        }
-      }), { virtual: true });
+        },
+        writable: true
+      });
       
       const request = createMockRequest();
       const event = createMockEvent();
@@ -139,8 +157,10 @@ describe('Maintenance Worker', () => {
       pastDate.setDate(pastDate.getDate() - 1);
       const pastDateStr = pastDate.toISOString();
       
-      vi.mock('./config.json', () => ({
-        default: {
+      // Temporarily modify the config for this test
+      const originalConfig = vi.mocked('./config.json', true).default;
+      Object.defineProperty(vi.mocked('./config.json', true), 'default', {
+        value: {
           enabled: true,
           maintenance_title: 'Test Maintenance',
           contact_email: 'test@example.com',
@@ -153,8 +173,9 @@ describe('Maintenance Worker', () => {
           logo_url: '',
           environment: 'dev',
           maintenance_language: 'en'
-        }
-      }), { virtual: true });
+        },
+        writable: true
+      });
       
       const request = createMockRequest();
       const event = createMockEvent();
