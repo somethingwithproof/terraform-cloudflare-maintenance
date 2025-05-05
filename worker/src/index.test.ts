@@ -1,5 +1,30 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { handleRequest, isAllowedIP, isWithinMaintenanceWindow } from './index';
+import { handleRequest, isAllowedIP, isWithinMaintenanceWindow, detectLanguage } from './index';
+
+// Mock the translations
+vi.mock('./translations', () => ({
+  translations: {
+    en: {
+      title: "System Maintenance",
+      message: "We're currently performing scheduled maintenance on our systems.",
+      progress: "Our team is working diligently to complete the maintenance as quickly as possible.",
+      apology: "We apologize for any inconvenience this may cause.",
+      checkBack: "Please check back soon. We appreciate your patience.",
+      contact: "If you need immediate assistance, please contact us at:",
+      footer: "This site is temporarily unavailable due to planned maintenance."
+    },
+    es: {
+      title: "Mantenimiento del Sistema",
+      message: "Actualmente estamos realizando un mantenimiento programado en nuestros sistemas.",
+      progress: "Nuestro equipo está trabajando diligentemente para completar el mantenimiento lo más rápido posible.",
+      apology: "Pedimos disculpas por cualquier inconveniente que esto pueda causar.",
+      checkBack: "Por favor, vuelva a consultar pronto. Agradecemos su paciencia.",
+      contact: "Si necesita asistencia inmediata, contáctenos en:",
+      footer: "Este sitio está temporalmente no disponible debido a un mantenimiento planificado."
+    }
+  },
+  Translation: {}
+}));
 
 // Mock the config
 vi.mock('./config.json', () => ({
@@ -10,7 +35,9 @@ vi.mock('./config.json', () => ({
     allowed_ips: '["192.168.1.1"]',
     maintenance_window: null,
     custom_css: '',
-    logo_url: ''
+    logo_url: '',
+    environment: 'dev',
+    maintenance_language: 'en'
   }
 }));
 
@@ -23,10 +50,13 @@ describe('Maintenance Worker', () => {
   const mockHeaders = new Map();
   
   // Mock request
-  const createMockRequest = (ip?: string) => {
+  const createMockRequest = (ip?: string, acceptLanguage?: string) => {
     const headers = new Map();
     if (ip) {
       headers.set('CF-Connecting-IP', ip);
+    }
+    if (acceptLanguage) {
+      headers.set('Accept-Language', acceptLanguage);
     }
     
     return {
@@ -80,7 +110,9 @@ describe('Maintenance Worker', () => {
           allowed_ips: '[]',
           maintenance_window: null,
           custom_css: '',
-          logo_url: ''
+          logo_url: '',
+          environment: 'dev',
+          maintenance_language: 'en'
         }
       }), { virtual: true });
       
@@ -118,7 +150,9 @@ describe('Maintenance Worker', () => {
             end_time: pastDateStr
           }),
           custom_css: '',
-          logo_url: ''
+          logo_url: '',
+          environment: 'dev',
+          maintenance_language: 'en'
         }
       }), { virtual: true });
       
@@ -128,6 +162,20 @@ describe('Maintenance Worker', () => {
       const response = await handleRequest(request, event);
       
       expect(mockFetch).toHaveBeenCalledWith(request);
+    });
+    
+    it('should serve maintenance page with correct language based on Accept-Language header', async () => {
+      const request = createMockRequest(undefined, 'es-ES,es;q=0.9,en;q=0.8');
+      const event = createMockEvent();
+      
+      const response = await handleRequest(request, event);
+      
+      expect(response.status).toBe(503);
+      expect(response.headers.get('Content-Language')).toBe('es');
+      
+      const text = await response.text();
+      expect(text).toContain('lang="es"');
+      expect(text).toContain('Mantenimiento del Sistema');
     });
   });
   
@@ -182,6 +230,29 @@ describe('Maintenance Worker', () => {
         start_time: '',
         end_time: ''
       })).toBe(true);
+    });
+  });
+  
+  describe('detectLanguage', () => {
+    it('should detect language from Accept-Language header', () => {
+      const request = createMockRequest(undefined, 'es-ES,es;q=0.9,en;q=0.8');
+      expect(detectLanguage(request)).toBe('es');
+    });
+    
+    it('should fall back to default language when Accept-Language header is not present', () => {
+      const request = createMockRequest();
+      expect(detectLanguage(request)).toBe('en');
+    });
+    
+    it('should fall back to default language when Accept-Language does not match supported languages', () => {
+      const request = createMockRequest(undefined, 'fr-FR,fr;q=0.9');
+      // Note: In our mock we only defined 'en' and 'es' translations
+      expect(detectLanguage(request)).toBe('en');
+    });
+    
+    it('should respect quality values in Accept-Language header', () => {
+      const request = createMockRequest(undefined, 'fr-FR;q=0.8,es-ES;q=0.9,en;q=0.7');
+      expect(detectLanguage(request)).toBe('es');
     });
   });
 });

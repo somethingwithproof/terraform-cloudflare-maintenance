@@ -1,18 +1,39 @@
 {
   "name": "cloudflare-maintenance-worker",
-  "version": "1.0.0",
-  "description": "A Cloudflare Worker for serving a modern maintenance page.",
+  "version": "3.0.0",
+  "description": "A Cloudflare Worker for serving a modern maintenance page with multi-language support.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "webpack",
+    "build:dev": "tsc",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint 'src/**/*.ts'",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250430.0",
+    "@typescript-eslint/eslint-plugin": "^7.3.1",
+    "@typescript-eslint/parser": "^7.3.1",
     "@vitest/coverage-v8": "^3.1.2",
+    "eslint": "^8.57.0",
+    "terser-webpack-plugin": "^5.3.10",
+    "ts-loader": "^9.5.1",
     "typescript": "^5.8.3",
-    "vitest": "^3.1.2"
-  }
+    "vitest": "^3.1.2",
+    "webpack": "^5.91.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "maintenance",
+    "multi-language"
+  ],
+  "author": "Thomas Vincent",
+  "license": "MIT"
 }

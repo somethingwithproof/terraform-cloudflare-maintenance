@@ -1,0 +1,23 @@
+feat(v3.0.0): major upgrade with enhanced features and security
+
+This major update introduces significant improvements to the terraform-cloudflare-maintenance module:
+
+- 🌐 Added multi-language support with 9 languages
+- 🔒 Added IP range support with CIDR notation and regional bypass
+- 🛡️ Enhanced security with comprehensive headers and bot detection
+- 🚀 Optimized worker performance with webpack bundling
+- 🔑 Added secured maintenance API for programmatic control
+- ☁️ Added Terraform Cloud integration with examples
+- 📊 Improved test coverage and CI/CD workflows
+- 🔍 Added dark mode support and SEO improvements
+- ⚡ Optimized module structure and updated dependencies
+- 📚 Enhanced documentation and examples
+
+BREAKING CHANGES:
+- Now requires Cloudflare provider v5.2+
+- Worker script updated to use new binding syntax
+- Changed API from firewall to ruleset for IP allowlisting
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>

@@ -1,7 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 
-// Import configuration
+// Import configuration and translations
 import config from './config.json';
+import { translations, Translation } from './translations';
 
 // Define interfaces
 interface MaintenanceConfig {
@@ -12,6 +13,9 @@ interface MaintenanceConfig {
   maintenance_window: string | null; // JSON string or null
   custom_css: string;
   logo_url: string;
+  environment: string;
+  maintenance_language?: string;
+  api_key?: string;
 }
 
 interface MaintenanceWindow {
@@ -23,6 +27,7 @@ interface MaintenanceWindow {
 const typedConfig = config as MaintenanceConfig;
 let allowedIPs: string[] = [];
 let maintenanceWindow: MaintenanceWindow | null = null;
+const defaultLanguage = typedConfig.maintenance_language || 'en';
 
 // Initialize configuration
 try {
@@ -34,9 +39,20 @@ try {
   console.error("Error parsing configuration:", e);
 }
 
+// Import API handler
+import { handleApiRequest } from './api';
+
 // Event listener for incoming requests
 addEventListener("fetch", (event: FetchEvent) => {
-  event.respondWith(handleRequest(event.request, event));
+  const url = new URL(event.request.url);
+  
+  // Route API requests differently
+  if (url.pathname.startsWith('/api/')) {
+    // @ts-ignore - KVNamespace not in types
+    event.respondWith(handleApiRequest(event.request, typedConfig.api_key || 'default_api_key', MAINTENANCE_CONFIG));
+  } else {
+    event.respondWith(handleRequest(event.request, event));
+  }
 });
 
 /**
@@ -102,12 +118,46 @@ export function isWithinMaintenanceWindow(window: MaintenanceWindow): boolean {
 }
 
 /**
+ * Detect preferred language from request
+ * @param request - The incoming request
+ * @returns string - Language code
+ */
+export function detectLanguage(request: Request): string {
+  // Check for accept-language header
+  const acceptLanguage = request.headers.get('Accept-Language');
+  
+  if (!acceptLanguage) {
+    return defaultLanguage;
+  }
+  
+  // Parse the Accept-Language header
+  const preferredLanguages = acceptLanguage.split(',')
+    .map(lang => {
+      const [code, q = 'q=1.0'] = lang.trim().split(';');
+      const quality = parseFloat(q.substring(2)) || 0;
+      return { code: code.substring(0, 2).toLowerCase(), quality };
+    })
+    .sort((a, b) => b.quality - a.quality);
+  
+  // Try to find the first supported language
+  for (const { code } of preferredLanguages) {
+    if (translations[code]) {
+      return code;
+    }
+  }
+  
+  // Fallback to default language
+  return defaultLanguage;
+}
+
+/**
  * Log request details to Cloudflare Analytics
  * @param request - The incoming request
  * @param event - The fetch event
  */
 function logRequest(request: Request, event: FetchEvent): void {
   const url = new URL(request.url);
+  const clientLanguage = detectLanguage(request);
 
   // @ts-ignore - Analytics Engine is not in the types yet
   if (typeof MAINTENANCE_ANALYTICS !== 'undefined') {
@@ -118,7 +168,9 @@ function logRequest(request: Request, event: FetchEvent): void {
           url.pathname,
           request.method,
           request.headers.get('CF-Connecting-IP') || 'unknown',
-          request.headers.get('User-Agent') || 'unknown'
+          request.headers.get('User-Agent') || 'unknown',
+          clientLanguage,
+          typedConfig.environment
         ],
         doubles: [Date.now()],
         indexes: [typedConfig.enabled ? 1 : 0]
@@ -127,41 +179,68 @@ function logRequest(request: Request, event: FetchEvent): void {
   }
 }
 
+// Import security utilities
+import { applySecurityHeaders, isBot, createBotResponse } from './security';
+
 /**
  * Generate and serve the maintenance page
  * @param request - The incoming request
  * @returns Response
  */
 function serveMaintenancePage(request: Request): Response {
-  const html = generateMaintenanceHTML();
-
-  return new Response(html, {
+  const language = detectLanguage(request);
+  const trans = translations[language] || translations[defaultLanguage];
+  
+  // Handle bots differently - provide simpler response with appropriate headers
+  if (isBot(request)) {
+    return createBotResponse(
+      typedConfig.maintenance_title || trans.title,
+      trans.message
+    );
+  }
+  
+  const html = generateMaintenanceHTML(language);
+  
+  // Set content language header based on detected language
+  const response = new Response(html, {
     status: 503,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
+      "Content-Language": language,
       "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
       "Retry-After": "300",
       "X-Robots-Tag": "noindex"
     }
   });
+  
+  // Apply additional security headers
+  return applySecurityHeaders(response);
 }
 
 /**
  * Generate the HTML for the maintenance page
+ * @param language - Language code for translations
  * @returns string - HTML content
  */
-function generateMaintenanceHTML(): string {
-  const title = typedConfig.maintenance_title || "System Maintenance";
+function generateMaintenanceHTML(language: string = defaultLanguage): string {
+  // Get translation for the selected language or fall back to default
+  const trans: Translation = translations[language] || translations[defaultLanguage];
+  
+  // Get configuration
+  const title = typedConfig.maintenance_title || trans.title;
   const email = typedConfig.contact_email || "";
   const logo = typedConfig.logo_url || "";
   const customCSS = typedConfig.custom_css || "";
-
+  
+  // Generate HTML with the appropriate language code
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>${title}</title>
+  <meta name="robots" content="noindex,nofollow"/>
+  <meta name="description" content="${trans.message}"/>
   <style>
     :root {
       --primary-color: #0051c3;
@@ -235,6 +314,36 @@ function generateMaintenanceHTML(): string {
       color: var(--secondary-color);
     }
     
+    .language-selector {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    
+    .language-selector a {
+      margin: 0 0.5rem;
+      color: var(--secondary-color);
+      text-decoration: none;
+    }
+    
+    .language-selector a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary-color: #4d97ff;
+        --secondary-color: #adb5bd;
+        --background-color: #121212;
+        --text-color: #e0e0e0;
+        --border-color: #2c2c2c;
+      }
+      
+      footer {
+        background-color: #1e1e1e;
+      }
+    }
+    
     @media (max-width: 768px) {
       .maintenance-container {
         padding: 1rem;
@@ -253,17 +362,25 @@ function generateMaintenanceHTML(): string {
   <div class="maintenance-container">
     ${logo ? `<img src="${logo}" alt="Logo" class="logo"/>` : ''}
     <h1>${title}</h1>
-    <p><span class="status-indicator"></span> We're currently performing scheduled maintenance on our systems.</p>
-    <p>We apologize for any inconvenience this may cause. Our team is working diligently to complete the maintenance as quickly as possible.</p>
-    <p>Please check back soon. We appreciate your patience.</p>
+    <p><span class="status-indicator"></span> ${trans.message}</p>
+    <p>${trans.apology} ${trans.progress}</p>
+    <p>${trans.checkBack}</p>
     ${email ? `
     <div class="contact">
-      If you need immediate assistance, please contact us at: <a href="mailto:${email}">${email}</a>
+      ${trans.contact} <a href="mailto:${email}">${email}</a>
     </div>
     ` : ''}
+    
+    <div class="language-selector">
+      ${Object.keys(translations).map(langCode => 
+        `<a href="?lang=${langCode}" ${langCode === language ? 'aria-current="true"' : ''}>${langCode.toUpperCase()}</a>`
+      ).join(' ')}
+    </div>
   </div>
   <footer>
-    <p>This site is temporarily unavailable due to planned maintenance.</p>
+    <p>${trans.footer}</p>
+    ${typedConfig.environment !== 'production' ? 
+      `<p><small>Environment: ${typedConfig.environment}</small></p>` : ''}
   </footer>
 </body>
 </html>`;
