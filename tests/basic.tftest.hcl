@@ -23,22 +23,22 @@ run "test_enabled_maintenance" {
 
   # Assertions for enabled maintenance
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) > 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) > 0
     error_message = "Worker route should be created when maintenance is enabled"
   }
 
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script") && r.type == "create"]) > 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_script") && r.type == "create"]) > 0
     error_message = "Worker script should be created when maintenance is enabled"
   }
 
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_record") && r.type == "create"]) > 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_record") && r.type == "create"]) > 0
     error_message = "DNS record should be created when maintenance is enabled"
   }
 
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
     error_message = "Ruleset should be created for IP bypass when maintenance is enabled"
   }
 }
@@ -65,17 +65,17 @@ run "test_disabled_maintenance" {
   
   # Assertions for disabled maintenance
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
     error_message = "Worker route should not be created when maintenance is disabled"
   }
 
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_record") && r.type == "create"]) == 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_record") && r.type == "create"]) == 0
     error_message = "DNS record should not be created when maintenance is disabled"
   }
 
   assert {
-    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) == 0
+    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) == 0
     error_message = "Ruleset should not be created when maintenance is disabled"
   }
 }
