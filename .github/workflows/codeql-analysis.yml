@@ -17,8 +17,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript' ]
-        # If you have other languages, add them here
+        language: [ 'javascript', 'typescript' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby', 'swift', 'typescript' ]
+        # Skip unsupported languages with:
+        # continue-on-error: true
 
     steps:
       - name: Checkout repository
@@ -28,9 +30,10 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
+          queries: security-extended
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+        uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
