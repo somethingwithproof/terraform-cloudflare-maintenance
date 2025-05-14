@@ -1,4 +1,5 @@
 run "verify_worker_script_configuration" {
+  # Define variables for module under test
   variables {
     cloudflare_api_token  = "00000000000000000000000000000000000000aa"
     cloudflare_account_id = "0000000000000000000000000000000000000000"
@@ -14,13 +15,18 @@ run "verify_worker_script_configuration" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify worker script is created
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = module.cloudflare_workers_script["maintenance_worker"].name != ""
     error_message = "Worker script should be created"
   }
 }
 
 run "verify_worker_config_file" {
+  # Define variables for module under test
   variables {
     cloudflare_api_token  = "00000000000000000000000000000000000000aa"
     cloudflare_account_id = "0000000000000000000000000000000000000000"
@@ -37,8 +43,12 @@ run "verify_worker_config_file" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify worker config file is created
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "local_file.worker_config")]) > 0
+    condition     = module.local_file["worker_config"].filename != ""
     error_message = "Worker config file should be created"
   }
 }
@@ -60,8 +70,12 @@ run "verify_worker_secret_binding" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify worker script with bindings is created
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = module.cloudflare_workers_script["maintenance_worker"].name != ""
     error_message = "Worker script with bindings should be created"
   }
 }
@@ -82,8 +96,12 @@ run "verify_worker_analytics_binding" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify worker script with analytics binding is created
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = module.cloudflare_workers_script["maintenance_worker"].name != ""
     error_message = "Worker script with analytics binding should be created"
   }
 }
@@ -104,8 +122,12 @@ run "verify_kv_namespace" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify KV namespace is created
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace")]) > 0
+    condition     = module.cloudflare_workers_kv_namespace["maintenance_kv"][0].title != ""
     error_message = "Worker KV namespace should be created when maintenance is enabled"
   }
 }
@@ -126,13 +148,18 @@ run "verify_disabled_worker_configuration" {
     source = "../"
   }
 
+  # Apply the configuration
+  command = apply
+
+  # Verify worker route is not created when disabled
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
+    condition     = length(module.cloudflare_workers_route) == 0
     error_message = "Worker route should not be created when maintenance is disabled"
   }
 
+  # Verify KV namespace is not created when disabled
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace") && r.type == "create"]) == 0
+    condition     = length(module.cloudflare_workers_kv_namespace) == 0
     error_message = "Worker KV namespace should not be created when maintenance is disabled"
   }
 }

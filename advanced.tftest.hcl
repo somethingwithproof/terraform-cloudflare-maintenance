@@ -69,12 +69,12 @@ run "verify_rfc3339_date_validation" {
     maintenance_title     = "System Maintenance"
     contact_email         = "support@example.com"
     environment           = "staging"
-    maintenance_window    = {
+    maintenance_window = {
       start_time = "2025-04-06T08:00:00Z"
       end_time   = "2025-04-06T10:00:00Z"
     }
   }
-  
+
   module {
     source = "../"
   }
@@ -97,7 +97,7 @@ run "verify_ip_concatenation" {
     environment           = "staging"
     allowed_ips           = ["192.168.1.1", "10.0.0.1", "172.16.0.1"]
   }
-  
+
   module {
     source = "../"
   }

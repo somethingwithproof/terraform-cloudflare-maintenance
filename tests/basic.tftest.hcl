@@ -59,10 +59,10 @@ run "test_disabled_maintenance" {
   module {
     source = "../"
   }
-  
+
   # Plan command
   command = plan
-  
+
   # Assertions for disabled maintenance
   assert {
     condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0

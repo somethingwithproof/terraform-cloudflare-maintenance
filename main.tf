@@ -12,11 +12,11 @@ resource "random_password" "api_key" {
 
 locals {
   worker_vars = {
-    enabled           = var.enabled
-    maintenance_title = var.maintenance_title
-    contact_email     = var.contact_email
-    allowed_ips       = jsonencode(var.allowed_ips)
-    environment       = var.environment
+    enabled              = var.enabled
+    maintenance_title    = var.maintenance_title
+    contact_email        = var.contact_email
+    allowed_ips          = jsonencode(var.allowed_ips)
+    environment          = var.environment
     maintenance_language = var.maintenance_language
     maintenance_window = var.maintenance_window != null ? jsonencode({
       start_time = var.maintenance_window.start_time
@@ -90,14 +90,14 @@ resource "cloudflare_workers_kv_namespace" "maintenance_config" {
 
 # Optional: Create a custom hostname for the maintenance page
 resource "cloudflare_dns_record" "maintenance" {
-  count    = var.enabled ? 1 : 0
-  zone_id  = var.cloudflare_zone_id
-  name     = "maintenance"
-  content  = "100::"  # IPv6 placeholder for Worker routes
-  type     = "AAAA"
-  proxied  = true
-  ttl      = 1        # Auto
-  comment  = "Maintenance page DNS record"
+  count   = var.enabled ? 1 : 0
+  zone_id = var.cloudflare_zone_id
+  name    = "maintenance"
+  content = "100::" # IPv6 placeholder for Worker routes
+  type    = "AAAA"
+  proxied = true
+  ttl     = 1 # Auto
+  comment = "Maintenance page DNS record"
 }
 
 # Create zone ruleset for IP and region-based bypass
@@ -114,7 +114,7 @@ resource "cloudflare_ruleset" "maintenance_bypass" {
       action      = "skip"
       description = "Allow specific IPs, IP ranges, and regions to bypass maintenance"
       enabled     = true
-      expression  = join(" or ", concat(
+      expression = join(" or ", concat(
         # Individual IPs
         [for ip in var.allowed_ips : "(ip.src eq ${ip})"],
         # IP Ranges in CIDR notation
@@ -129,23 +129,12 @@ resource "cloudflare_ruleset" "maintenance_bypass" {
   ]
 }
 
-# Optional: Add rate limiting for maintenance page to prevent abuse
-resource "cloudflare_rate_limit" "maintenance_rate_limit" {
-  count       = var.enabled && var.rate_limit.enabled ? 1 : 0
-  zone_id     = var.cloudflare_zone_id
-  threshold   = var.rate_limit.threshold
-  period      = var.rate_limit.period
-  
-  match = {
-    request = {
-      url_pattern = "maintenance.${trimsuffix(trimprefix(var.worker_route, "*."), "/*")}/*"
-      schemes     = ["HTTP", "HTTPS"]
-      methods     = ["GET"]
-    }
-  }
-  
-  action = {
-    mode    = var.rate_limit.action
-    timeout = 300
-  }
-}
+# Rate limiting feature has been temporarily disabled
+# 
+# The Cloudflare rate_limit resource is deprecated and we'll implement
+# the newer Cloudflare Ruleset Rate Limiting in a future update when the 
+# provider version fully supports it. For now, we've removed the resource
+# to ensure the module validates properly.
+#
+# If you need rate limiting, please consider using a separate Cloudflare Ruleset
+# outside of this module until this functionality is restored.

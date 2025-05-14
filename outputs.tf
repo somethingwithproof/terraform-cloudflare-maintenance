@@ -56,8 +56,8 @@ output "ruleset_id" {
 }
 
 output "rate_limit_id" {
-  description = "ID of the rate limit rule (if enabled)"
-  value       = var.enabled && var.rate_limit.enabled ? cloudflare_rate_limit.maintenance_rate_limit[0].id : "No rate limit created"
+  description = "ID of the rate limit rule (if enabled) - temporarily disabled"
+  value       = "Rate limiting temporarily disabled pending provider update"
 }
 
 output "api_endpoint" {

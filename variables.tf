@@ -115,25 +115,28 @@ variable "logo_url" {
   default     = ""
 }
 
-variable "rate_limit" {
-  description = "Rate limiting configuration for the maintenance page"
-  type = object({
-    enabled     = bool
-    threshold   = number
-    period      = number
-    action      = string
-  })
-  default = {
-    enabled   = false
-    threshold = 100
-    period    = 60
-    action    = "block"
-  }
-  validation {
-    condition     = contains(["block", "challenge", "js_challenge", "managed_challenge"], var.rate_limit.action)
-    error_message = "Rate limit action must be one of: block, challenge, js_challenge, managed_challenge."
-  }
-}
+# Note: rate_limit has been temporarily deprecated until we update to use 
+# the newer Cloudflare rulesets API. Commented out but keeping the definition
+# for future reference.
+# variable "rate_limit" {
+#   description = "Rate limiting configuration for the maintenance page"
+#   type = object({
+#     enabled   = bool
+#     threshold = number
+#     period    = number
+#     action    = string
+#   })
+#   default = {
+#     enabled   = false
+#     threshold = 100
+#     period    = 60
+#     action    = "block"
+#   }
+#   validation {
+#     condition     = contains(["block", "challenge", "js_challenge", "managed_challenge"], var.rate_limit.action)
+#     error_message = "Rate limit action must be one of: block, challenge, js_challenge, managed_challenge."
+#   }
+# }
 
 variable "api_key" {
   description = "Custom API key for maintenance API (will be generated randomly if not provided)"
