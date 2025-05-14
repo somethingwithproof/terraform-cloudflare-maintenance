@@ -16,17 +16,17 @@ run "verify_staging_environment" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script should be created for staging environment"
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_route")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_route")]) > 0
     error_message = "Worker route should be created for staging environment"
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_ruleset")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_ruleset")]) > 0
     error_message = "Ruleset should be created when maintenance is enabled with allowed IPs"
   }
 }
@@ -49,12 +49,12 @@ run "verify_production_environment" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script should be created for production environment"
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_route")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_route")]) > 0
     error_message = "Worker route should be created for production environment"
   }
 }
@@ -80,7 +80,7 @@ run "verify_rfc3339_date_validation" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script should be created with valid maintenance window"
   }
 }
@@ -103,7 +103,7 @@ run "verify_ip_concatenation" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_ruleset")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_ruleset")]) > 0
     error_message = "Ruleset should be created with multiple IPs"
   }
 }

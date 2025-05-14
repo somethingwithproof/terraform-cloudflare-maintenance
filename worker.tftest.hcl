@@ -15,7 +15,7 @@ run "verify_worker_script_configuration" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script should be created"
   }
 }
@@ -38,7 +38,7 @@ run "verify_worker_config_file" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "local_file.worker_config")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "local_file.worker_config")]) > 0
     error_message = "Worker config file should be created"
   }
 }
@@ -61,7 +61,7 @@ run "verify_worker_secret_binding" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script with bindings should be created"
   }
 }
@@ -83,7 +83,7 @@ run "verify_worker_analytics_binding" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_script")]) > 0
     error_message = "Worker script with analytics binding should be created"
   }
 }
@@ -105,7 +105,7 @@ run "verify_kv_namespace" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace")]) > 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace")]) > 0
     error_message = "Worker KV namespace should be created when maintenance is enabled"
   }
 }
@@ -127,12 +127,12 @@ run "verify_disabled_worker_configuration" {
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
     error_message = "Worker route should not be created when maintenance is disabled"
   }
 
   assert {
-    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace") && r.type == "create"]) == 0
+    condition     = length([for r in terraform.plan.resource_changes : r if contains(r.address, "cloudflare_workers_kv_namespace") && r.type == "create"]) == 0
     error_message = "Worker KV namespace should not be created when maintenance is disabled"
   }
 }
