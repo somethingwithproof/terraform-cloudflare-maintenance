@@ -17,10 +17,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript', 'typescript' ]
+        language: [ 'javascript' ]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby', 'swift', 'typescript' ]
         # Skip unsupported languages with:
         # continue-on-error: true
+        # Note: Using only 'javascript' will also analyze TypeScript code
 
     steps:
       - name: Checkout repository
