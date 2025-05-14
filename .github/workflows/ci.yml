@@ -11,6 +11,10 @@ on:
       - '**.md'
   workflow_dispatch:
 
+# Default permissions are read-only
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

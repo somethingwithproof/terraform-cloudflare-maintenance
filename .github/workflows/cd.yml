@@ -16,6 +16,11 @@ on:
           - staging
           - production
 
+permissions:
+  contents: read
+  # Required for creating releases
+  actions: read
+
 jobs:
   deploy:
     name: Deploy to ${{ github.event.inputs.environment || 'dev' }}
@@ -73,5 +78,7 @@ jobs:
           generate_release_notes: true
           files: |
             worker/dist/index.js
+        # Note: This step needs GITHUB_TOKEN with write permissions to create releases
+        # Make sure the token has required permissions in repo settings
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
