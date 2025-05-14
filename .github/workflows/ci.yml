@@ -79,8 +79,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: worker/package-lock.json
 
-      - name: Install dependencies
-        run: cd worker && npm ci
+      - name: Clean and Install dependencies
+        run: |
+          cd worker
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Run tests
         run: cd worker && npm test -- src/test-utils.test.ts

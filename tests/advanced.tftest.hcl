@@ -32,17 +32,17 @@ run "verify_staging_environment" {
   
   # Assertions for staging environment (should be enabled)
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) > 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) > 0
     error_message = "Worker route should be created in staging environment"
   }
   
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_script") && r.type == "create"]) > 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_script") && r.type == "create"]) > 0
     error_message = "Worker script should be created in staging environment"
   }
   
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
     error_message = "Ruleset should be created in staging environment for IP bypass"
   }
 }
@@ -79,12 +79,12 @@ run "verify_production_environment" {
   
   # Assertions for production environment (should be disabled)
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_workers_route") && r.type == "create"]) == 0
     error_message = "Worker route should not be created in production environment"
   }
   
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) == 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) == 0
     error_message = "Ruleset should not be created in production environment"
   }
 }
@@ -112,13 +112,13 @@ run "verify_rfc3339_date_validation" {
   
   # Check that worker config file will be created (indicating valid dates)
   assert {
-    condition     = length([for r in plan.resource_changes : r if contains(r.address, "local_file") && contains(r.address, "worker_config")]) > 0
+    condition     = length([for r in data.plan_resource_changes : r if contains(r.address, "local_file") && contains(r.address, "worker_config")]) > 0
     error_message = "Worker config file should be created with valid RFC3339 dates"
   }
   
   # Check that plan succeeds (no validation errors on dates)
   assert {
-    condition     = length(plan.resource_changes) > 0
+    condition     = length(data.plan_resource_changes) > 0
     error_message = "Plan should include resource changes with valid RFC3339 dates"
   }
 }
@@ -145,7 +145,7 @@ run "verify_ip_concatenation" {
   
   # Verify ruleset is created for bypassing maintenance
   assert {
-    condition = length([for r in plan.resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
+    condition = length([for r in data.plan_resource_changes : r if contains(r.address, "cloudflare_ruleset") && r.type == "create"]) > 0
     error_message = "Ruleset should be created for IP bypass when allowed IPs are specified"
   }
   
