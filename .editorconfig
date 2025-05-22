@@ -1,0 +1,29 @@
+# Google Style Guide EditorConfig for Terraform
+# Based on HashiCorp recommendations aligned with Google practices
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.tf]
+indent_size = 2
+max_line_length = 80
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.go]
+indent_size = 4
+max_line_length = 100
+
+[*.js]
+indent_size = 2
+max_line_length = 80
+
+[*.md]
+trim_trailing_whitespace = false
