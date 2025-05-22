@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run TFSec
-        uses: aquasecurity/tfsec-action@v1.0.0
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
           soft_fail: true
 
