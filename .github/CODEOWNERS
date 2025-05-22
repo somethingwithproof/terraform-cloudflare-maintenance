@@ -1,13 +1,27 @@
-# Each line is a file pattern followed by one or more owners (user or team).
-# Requires branch protection with "Require review from Code Owners" for auto-approval gating.
+# Global code ownership - Thomas Vincent owns all code
+* @thomasvincent
 
-# Terraform files
+# Terraform-specific files
 *.tf @thomasvincent
+*.tfvars @thomasvincent
 *.tftest.hcl @thomasvincent
+terraform.tf @thomasvincent
 
-# Worker code
-worker/ @thomasvincent
-worker/src/ @thomasvincent
+# TypeScript/JavaScript files (Worker)
+worker/*.ts @thomasvincent
+worker/*.js @thomasvincent
+worker/package.json @thomasvincent
+worker/tsconfig.json @thomasvincent
 
-# GitHub workflows
+# Configuration files
+.github/ @thomasvincent
+.pre-commit-config.yaml @thomasvincent
+
+# CI/CD and automation
 .github/workflows/ @thomasvincent
+.github/dependabot.yml @thomasvincent
+
+# Documentation
+README.md @thomasvincent
+docs/ @thomasvincent
+*.md @thomasvincent
