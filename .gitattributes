@@ -1,0 +1,41 @@
+# Terraform language detection
+*.tf linguist-language=HCL
+*.tfvars linguist-language=HCL
+*.hcl linguist-language=HCL
+
+# CloudFlare Workers
+worker/*.js linguist-language=JavaScript
+worker/*.ts linguist-language=TypeScript
+
+# Documentation
+*.md linguist-documentation
+docs/* linguist-documentation
+
+# Vendored files
+.terraform/* linguist-vendored
+node_modules/* linguist-vendored
+
+# Binary files
+*.tfstate binary
+*.tfstate.backup binary
+*.zip binary
+*.tar.gz binary
+
+# Line endings
+*.tf text eol=lf
+*.tfvars text eol=lf
+*.hcl text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+
+# Windows scripts
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Diff settings
+*.tfstate -diff
+*.tfstate.backup -diff
