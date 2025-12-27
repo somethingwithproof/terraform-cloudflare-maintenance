@@ -1,140 +1,44 @@
-# Main Terraform configuration for Cloudflare maintenance mode
-
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-resource "random_password" "api_key" {
-  length           = 32
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
-}
+# Deploy the maintenance worker
+resource "cloudflare_workers_script" "maintenance" {
+  account_id  = var.cloudflare_account_id
+  name        = "maintenance-page-worker"
+  content     = file("${path.module}/worker.js")
 
-locals {
-  worker_vars = {
-    enabled              = var.enabled
-    maintenance_title    = var.maintenance_title
-    contact_email        = var.contact_email
-    allowed_ips          = jsonencode(var.allowed_ips)
-    environment          = var.environment
-    maintenance_language = var.maintenance_language
-    maintenance_window = var.maintenance_window != null ? jsonencode({
-      start_time = var.maintenance_window.start_time
-      end_time   = var.maintenance_window.end_time
-    }) : "null"
-    custom_css = var.custom_css
-    logo_url   = var.logo_url
-    api_key    = var.api_key != "" ? var.api_key : random_password.api_key.result
+  # Environment variables for the worker
+  plain_text_binding {
+    name = "MAINTENANCE_ENABLED"
+    text = tostring(var.enabled)
+  }
+
+  plain_text_binding {
+    name = "MAINTENANCE_TITLE"
+    text = var.maintenance_title
+  }
+
+  plain_text_binding {
+    name = "MAINTENANCE_MESSAGE"
+    text = var.maintenance_message
+  }
+
+  plain_text_binding {
+    name = "CONTACT_EMAIL"
+    text = var.contact_email
+  }
+
+  secret_text_binding {
+    name = "ALLOWED_IPS"
+    text = jsonencode(var.allowed_ips)
   }
 }
 
-data "external" "bundle_worker" {
-  program = ["${path.module}/worker/build.sh"]
-
-  # Trigger rebuild when worker source changes
-  depends_on = [
-    local_file.worker_config
-  ]
-}
-
-resource "local_file" "worker_config" {
-  filename = "${path.module}/worker/src/config.json"
-  content  = jsonencode(local.worker_vars)
-}
-
-resource "cloudflare_workers_script" "maintenance" {
-  script_name = "maintenance-page-worker"
-  account_id  = var.cloudflare_account_id
-  content     = data.external.bundle_worker.result["script"]
-
-  # Define bindings as a list attribute
-  bindings = concat(
-    var.enabled ? [{
-      name         = "MAINTENANCE_CONFIG"
-      namespace_id = cloudflare_workers_kv_namespace.maintenance_config[0].id
-      type         = "kv_namespace"
-    }] : [],
-    [
-      {
-        name = "ALLOWED_IPS"
-        text = jsonencode(var.allowed_ips)
-        type = "secret_text"
-      },
-      {
-        name = "API_KEY"
-        text = local.worker_vars.api_key
-        type = "secret_text"
-      },
-      {
-        name    = "MAINTENANCE_ANALYTICS"
-        dataset = "maintenance_events"
-        type    = "analytics_engine"
-      }
-    ]
-  )
-}
-
-resource "cloudflare_workers_route" "maintenance_route" {
-  count   = var.enabled ? 1 : 0
-  zone_id = var.cloudflare_zone_id
-  pattern = var.worker_route
-  script  = cloudflare_workers_script.maintenance.script_name
-}
-
-# Optional: Create a KV namespace for configuration
-resource "cloudflare_workers_kv_namespace" "maintenance_config" {
-  count      = var.enabled ? 1 : 0
-  account_id = var.cloudflare_account_id
-  title      = "maintenance_config"
-}
-
-# Optional: Create a custom hostname for the maintenance page
-resource "cloudflare_dns_record" "maintenance" {
-  count   = var.enabled ? 1 : 0
-  zone_id = var.cloudflare_zone_id
-  name    = "maintenance"
-  content = "100::" # IPv6 placeholder for Worker routes
-  type    = "AAAA"
-  proxied = true
-  ttl     = 1 # Auto
-  comment = "Maintenance page DNS record"
-}
-
-# Create zone ruleset for IP and region-based bypass
-resource "cloudflare_ruleset" "maintenance_bypass" {
-  count       = var.enabled && (length(var.allowed_ips) > 0 || length(var.allowed_ip_ranges) > 0 || length(var.allowed_regions) > 0) ? 1 : 0
+# Create the worker route when enabled
+resource "cloudflare_workers_route" "maintenance" {
+  count       = var.enabled ? 1 : 0
   zone_id     = var.cloudflare_zone_id
-  name        = "Maintenance Bypass Rules"
-  description = "Allow specific IPs, IP ranges, and regions to bypass maintenance"
-  kind        = "zone"
-  phase       = "http_request_firewall_managed"
-
-  rules = [
-    {
-      action      = "skip"
-      description = "Allow specific IPs, IP ranges, and regions to bypass maintenance"
-      enabled     = true
-      expression = join(" or ", concat(
-        # Individual IPs
-        [for ip in var.allowed_ips : "(ip.src eq ${ip})"],
-        # IP Ranges in CIDR notation
-        [for cidr in var.allowed_ip_ranges : "(ip.src in ${cidr})"],
-        # Geographical regions
-        [for region in var.allowed_regions : "(ip.geoip.continent eq \"${region}\")"]
-      ))
-      action_parameters = {
-        ruleset = "current"
-      }
-    }
-  ]
+  pattern     = var.worker_route
+  script_name = cloudflare_workers_script.maintenance.name
 }
-
-# Rate limiting feature has been temporarily disabled
-# 
-# The Cloudflare rate_limit resource is deprecated and we'll implement
-# the newer Cloudflare Ruleset Rate Limiting in a future update when the 
-# provider version fully supports it. For now, we've removed the resource
-# to ensure the module validates properly.
-#
-# If you need rate limiting, please consider using a separate Cloudflare Ruleset
-# outside of this module until this functionality is restored.

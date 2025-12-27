@@ -1,0 +1,69 @@
+github_organization = "thomasvincent"
+
+default_branch         = "main"
+enable_issues          = true
+enable_projects        = false
+enable_wiki            = false
+enable_discussions     = false
+delete_branch_on_merge = true
+allow_squash_merge     = true
+allow_merge_commit     = true
+allow_rebase_merge     = true
+vulnerability_alerts   = true
+
+team_members = {
+  "infrastructure" = {
+    description = "Infrastructure and DevOps team"
+    privacy     = "closed"
+    members     = ["thomasvincent"]
+  }
+  "developers" = {
+    description = "Development team"
+    privacy     = "closed"
+    members     = ["thomasvincent"]
+  }
+}
+
+branch_protection_rules = {
+  "terraform-cloudflare-maintenance" = {
+    pattern                         = "main"
+    enforce_admins                  = false
+    require_signed_commits          = false
+    required_status_checks          = ["terraform-fmt", "terraform-validate", "terraform-plan"]
+    dismiss_stale_reviews           = true
+    require_code_owner_reviews      = false
+    required_approving_review_count = 1
+  }
+  "ansible-role-mariadb" = {
+    pattern                         = "main"
+    enforce_admins                  = false
+    require_signed_commits          = false
+    required_status_checks          = ["molecule-test"]
+    dismiss_stale_reviews           = true
+    require_code_owner_reviews      = false
+    required_approving_review_count = 1
+  }
+}
+
+organization_secret_names = {
+  "DOCKER_USERNAME" = {
+    visibility     = "all"
+    selected_repos = []
+  }
+  "DOCKER_PASSWORD" = {
+    visibility     = "all"
+    selected_repos = []
+  }
+  "AWS_ACCESS_KEY_ID" = {
+    visibility     = "selected"
+    selected_repos = ["terraform-aws-dedicated-host", "aws-ssm-automation-scripts"]
+  }
+  "AWS_SECRET_ACCESS_KEY" = {
+    visibility     = "selected"
+    selected_repos = ["terraform-aws-dedicated-host", "aws-ssm-automation-scripts"]
+  }
+}
+
+repository_secret_names = {
+  "terraform-cloudflare-maintenance" = ["CLOUDFLARE_API_TOKEN"]
+}

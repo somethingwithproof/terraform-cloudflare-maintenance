@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo list:*)",
+      "Bash(terraform:*)",
+      "Bash(code:*)",
+      "Bash(chmod:*)",
+      "Bash(./validate.sh)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
