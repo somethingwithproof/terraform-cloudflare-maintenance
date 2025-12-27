@@ -69,6 +69,8 @@ provider "cloudflare" {
 
 ## Installation
 
+### Standard Installation
+
 1. Add the module to your Terraform configuration:
 
 ```hcl
@@ -87,6 +89,7 @@ module "maintenance" {
 ```bash
 terraform init
 ```
+
 
 ## Usage
 
@@ -152,6 +155,8 @@ module "maintenance" {
 ## Architecture
 
 The module deploys the following components:
+
+![Architecture Diagram](architecture.png)
 
 ```mermaid
 graph TD
