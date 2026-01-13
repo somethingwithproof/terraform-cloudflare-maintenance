@@ -1,0 +1,19 @@
+# Example configuration file
+# Copy this to terraform.tfvars and fill in your values
+
+cloudflare_api_token  = "your-cloudflare-api-token"
+cloudflare_account_id = "your-cloudflare-account-id"
+cloudflare_zone_id    = "your-cloudflare-zone-id"
+
+environment = "production"
+
+# Optional: Enable notifications
+enable_notifications = false
+
+# Optional: Slack webhook URL
+# Format: slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+slack_webhook_url = ""
+
+# Optional: PagerDuty routing key
+# Format: pagerduty://your-routing-key
+pagerduty_routing_key = ""

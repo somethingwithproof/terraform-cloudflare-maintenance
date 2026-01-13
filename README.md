@@ -35,11 +35,14 @@ This Terraform module provides a robust, enterprise-ready maintenance mode solut
 
 - 🛡️ **Customizable Maintenance Page**: Fully customizable HTML/CSS with support for logos and branding
 - 🔒 **IP Allowlisting**: Allow specific IPs to bypass maintenance mode (e.g., for testing or monitoring)
-- ⏱️ **Scheduled Maintenance Windows**: Set specific time windows for maintenance mode to be active
+- ⏱️ **Scheduled Maintenance Windows**: Set specific time windows for maintenance mode to be active with RFC3339 timestamps
+- 📅 **Cron-based Scheduling**: Configure recurring maintenance windows with cron expressions
 - 📊 **Analytics Integration**: Built-in logging and monitoring with Cloudflare Analytics Engine
 - 🌍 **Geo-based Routing**: Optional geo-based traffic routing for region-specific maintenance
 - 🔄 **Zero-Downtime Toggle**: Enable/disable maintenance mode without redeployment
 - 🔍 **SEO Friendly**: Proper HTTP status codes and headers for search engines
+- 🔔 **Notification Support**: Slack, PagerDuty, and webhook integrations for maintenance alerts
+- 🏷️ **Environment-Aware**: Support for multiple environments (production, staging, development)
 
 ## Security
 
@@ -129,6 +132,9 @@ module "maintenance" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
   
+  # Environment configuration
+  environment = "production"
+  
   # Enable maintenance mode only for specific paths
   worker_route = "example.com/api/*"
   
@@ -142,6 +148,9 @@ module "maintenance" {
   # Allow internal IPs to bypass maintenance
   allowed_ips = var.office_ip_ranges
   
+  # Allow specific regions to bypass maintenance
+  allowed_regions = ["US", "CA"]
+  
   # Schedule maintenance window
   maintenance_window = {
     start_time = "2025-04-06T08:00:00Z"
@@ -151,6 +160,74 @@ module "maintenance" {
   # Custom styling
   custom_css = file("${path.module}/custom-styles.css")
   logo_url = "https://example.com/logo.png"
+  
+  # Cron-based scheduling (for documentation/future automation)
+  schedules = [
+    {
+      name     = "weekly-maintenance"
+      cron     = "0 2 * * SUN"  # Every Sunday at 2 AM
+      duration = "2h"
+      timezone = "America/Los_Angeles"
+      notify   = ["slack://webhook", "pagerduty://service"]
+    }
+  ]
+}
+```
+
+### Scheduled Maintenance with Notifications
+
+See the [scheduled maintenance example](examples/scheduled-maintenance/) for a complete example with notification support.
+
+```hcl
+module "maintenance" {
+  source = "github.com/thomasvincent/terraform-cloudflare-maintenance"
+  
+  cloudflare_api_token  = var.cloudflare_api_token
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_zone_id    = var.cloudflare_zone_id
+  
+  environment = "production"
+  enabled     = true
+  
+  # Time-based maintenance window
+  maintenance_window = {
+    start_time = "2025-04-06T08:00:00Z"
+    end_time   = "2025-04-06T10:00:00Z"
+  }
+  
+  # Custom branding
+  custom_css = "body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }"
+  logo_url   = "https://example.com/logo.png"
+  
+  # Cron schedules for recurring maintenance
+  schedules = [
+    {
+      name     = "weekly-maintenance"
+      cron     = "0 2 * * SUN"
+      duration = "2h"
+      timezone = "America/Los_Angeles"
+      notify   = ["slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"]
+    }
+  ]
+}
+
+# Optional: Configure notifications
+module "maintenance_notifications" {
+  source = "github.com/thomasvincent/terraform-cloudflare-maintenance//modules/notifications"
+  
+  notification_urls = [
+    "slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX",
+    "pagerduty://your-routing-key"
+  ]
+  
+  maintenance_status = module.maintenance.maintenance_status
+  schedule_name      = "scheduled-maintenance"
+  environment        = "production"
+  
+  maintenance_window = {
+    start_time = "2025-04-06T08:00:00Z"
+    end_time   = "2025-04-06T10:00:00Z"
+  }
 }
 ```
 
@@ -185,10 +262,14 @@ graph TD
 | cloudflare_zone_id | Cloudflare zone ID for the domain | `string` | n/a | yes |
 | worker_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
 | enabled | Toggle maintenance mode on/off | `bool` | `false` | no |
+| environment | Environment name (e.g., production, staging) | `string` | `"production"` | no |
 | maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
-| contact_email | Contact email to display on the maintenance page | `string` | `"support@example.com"` | no |
+| maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
+| contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
 | allowed_ips | List of IP addresses that can bypass the maintenance page | `list(string)` | `[]` | no |
-| maintenance_window | Scheduled maintenance window in RFC3339 format | `object` | `null` | no |
+| allowed_regions | List of ISO 3166-1 alpha-2 country codes that can bypass maintenance | `list(string)` | `[]` | no |
+| maintenance_window | Scheduled maintenance window in RFC3339 format | `object({start_time=string, end_time=string})` | `null` | no |
+| schedules | List of cron-based scheduled maintenance windows | `list(object)` | `[]` | no |
 | custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
 | logo_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
 
@@ -198,15 +279,64 @@ For a complete list of variables, see [variables.tf](variables.tf).
 
 | Name | Description |
 |------|-------------|
-| worker_script_name | Deployed Cloudflare Worker script name |
+| worker_id | The ID of the deployed worker script |
+| worker_name | The name of the deployed worker script |
+| worker_script_name | The name of the deployed worker script (alias) |
 | worker_route_pattern | Cloudflare route pattern for the maintenance page |
-| maintenance_status | Current status of the maintenance mode |
+| maintenance_status | Current status of the maintenance mode (ENABLED/DISABLED) |
+| maintenance_enabled | Whether maintenance mode is currently enabled |
 | maintenance_page_url | URL to access the maintenance page directly |
-| allowed_ips | IPs allowed to bypass the maintenance page |
+| environment | Environment name |
 | maintenance_window | Scheduled maintenance window if configured |
-| firewall_rule_id | ID of the firewall rule for IP allowlisting (if enabled) |
+| dns_record_id | ID of the DNS record for the maintenance status page |
+| ruleset_id | ID of the firewall ruleset for IP/region allowlisting |
+| allowed_regions | List of allowed regions that can bypass maintenance |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
+
+## Cron Expression Reference
+
+The `schedules` variable supports standard cron expressions:
+
+```
+ ┌───────────── minute (0 - 59)
+ │ ┌───────────── hour (0 - 23)
+ │ │ ┌───────────── day of month (1 - 31)
+ │ │ │ ┌───────────── month (1 - 12)
+ │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday to Saturday)
+ │ │ │ │ │
+ * * * * *
+```
+
+Common examples:
+- `0 2 * * SUN` - Every Sunday at 2 AM
+- `0 3 1 * *` - First day of every month at 3 AM
+- `0 0 * * 0,6` - Every Saturday and Sunday at midnight
+- `30 4 * * 1-5` - Weekdays at 4:30 AM
+
+## Notification Integrations
+
+The module supports multiple notification channels through the `modules/notifications` submodule:
+
+### Slack
+Send notifications to Slack channels via incoming webhooks:
+```hcl
+notification_urls = ["slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"]
+```
+
+### PagerDuty
+Create incidents or events in PagerDuty:
+```hcl
+notification_urls = ["pagerduty://your-routing-key"]
+```
+
+### Generic Webhooks
+Send JSON payloads to any webhook endpoint:
+```hcl
+notification_urls = ["webhook://https://example.com/webhook"]
+```
+
+See the [notifications module documentation](modules/notifications/README.md) for more details.
 
 ## Testing
 
