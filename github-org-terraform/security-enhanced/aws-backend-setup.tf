@@ -3,12 +3,12 @@
 
 module "backend_setup" {
   source = "./modules/backend-setup"
-  
-  bucket_name     = "github-terraform-state"
-  dynamodb_table  = "terraform-state-locks"
-  kms_alias       = "alias/github-terraform"
-  environment     = "production"
-  
+
+  bucket_name    = "github-terraform-state"
+  dynamodb_table = "terraform-state-locks"
+  kms_alias      = "alias/github-terraform"
+  environment    = "production"
+
   tags = {
     ManagedBy   = "Terraform"
     Purpose     = "GitHub Organization State"
@@ -19,17 +19,17 @@ module "backend_setup" {
 # modules/backend-setup/main.tf
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.bucket_name
-  
+
   lifecycle {
     prevent_destroy = true
   }
-  
+
   tags = var.tags
 }
 
 resource "aws_s3_bucket_versioning" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
-  
+
   versioning_configuration {
     status = "Enabled"
   }
@@ -37,7 +37,7 @@ resource "aws_s3_bucket_versioning" "terraform_state" {
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
-  
+
   rule {
     apply_server_side_encryption_by_default {
       kms_master_key_id = aws_kms_key.terraform_state.arn
@@ -48,7 +48,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "terraform_state" 
 
 resource "aws_s3_bucket_public_access_block" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
-  
+
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -57,28 +57,28 @@ resource "aws_s3_bucket_public_access_block" "terraform_state" {
 
 resource "aws_s3_bucket_logging" "terraform_state" {
   bucket = aws_s3_bucket.terraform_state.id
-  
+
   target_bucket = aws_s3_bucket.log_bucket.id
   target_prefix = "terraform-state-logs/"
 }
 
 resource "aws_s3_bucket" "log_bucket" {
   bucket = "${var.bucket_name}-logs"
-  
+
   lifecycle {
     prevent_destroy = true
   }
-  
+
   tags = var.tags
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "log_bucket" {
   bucket = aws_s3_bucket.log_bucket.id
-  
+
   rule {
     id     = "delete-old-logs"
     status = "Enabled"
-    
+
     expiration {
       days = 90
     }
@@ -86,28 +86,28 @@ resource "aws_s3_bucket_lifecycle_configuration" "log_bucket" {
 }
 
 resource "aws_dynamodb_table" "terraform_locks" {
-  name           = var.dynamodb_table
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "LockID"
-  
+  name         = var.dynamodb_table
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
   attribute {
     name = "LockID"
     type = "S"
   }
-  
+
   server_side_encryption {
     enabled     = true
     kms_key_arn = aws_kms_key.terraform_state.arn
   }
-  
+
   point_in_time_recovery {
     enabled = true
   }
-  
+
   lifecycle {
     prevent_destroy = true
   }
-  
+
   tags = var.tags
 }
 
@@ -115,7 +115,7 @@ resource "aws_kms_key" "terraform_state" {
   description             = "KMS key for GitHub Terraform state encryption"
   deletion_window_in_days = 30
   enable_key_rotation     = true
-  
+
   tags = var.tags
 }
 

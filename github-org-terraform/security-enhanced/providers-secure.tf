@@ -2,7 +2,7 @@
 
 terraform {
   required_version = ">= 1.0"
-  
+
   required_providers {
     github = {
       source  = "integrations/github"
@@ -22,17 +22,17 @@ terraform {
 # GitHub App Authentication (Most Secure)
 provider "github" {
   owner = var.github_organization
-  
+
   # Option 1: GitHub App (Recommended for production)
   app_auth {
     id              = var.github_app_id
     installation_id = var.github_app_installation_id
     pem_file        = var.github_app_pem_file
   }
-  
+
   # Option 2: Personal Access Token from AWS Secrets Manager
   # token = data.aws_secretsmanager_secret_version.github_token.secret_string
-  
+
   # Option 3: Token from HashiCorp Vault
   # token = data.vault_generic_secret.github_token.data["token"]
 }
@@ -40,13 +40,13 @@ provider "github" {
 # AWS Provider for Secrets Manager
 provider "aws" {
   region = var.aws_region
-  
+
   # Use IAM role instead of access keys
   assume_role {
     role_arn     = var.terraform_role_arn
     session_name = "terraform-github-management"
   }
-  
+
   default_tags {
     tags = {
       ManagedBy   = "Terraform"
@@ -59,11 +59,11 @@ provider "aws" {
 # HashiCorp Vault Provider (Optional)
 provider "vault" {
   address = var.vault_address
-  
+
   # Use AWS IAM auth method
   auth_login {
     path = "auth/aws/login"
-    
+
     parameters = {
       role = "terraform-github"
     }
@@ -133,7 +133,7 @@ variable "environment" {
   description = "Environment name (dev, staging, prod)"
   type        = string
   default     = "production"
-  
+
   validation {
     condition     = contains(["dev", "staging", "production"], var.environment)
     error_message = "Environment must be dev, staging, or production."

@@ -1,4 +1,4 @@
-name: Terraform Compliance
+name: OpenTofu Compliance
 on: [pull_request]
 
 permissions:
@@ -7,6 +7,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: hashicorp/setup-terraform@v3
-      - run: terraform validate
-      - run: terraform fmt -check
+      - uses: actions/checkout@v6
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: 1.8.0
+      - run: tofu init -backend=false
+      - run: tofu validate
+      - run: tofu fmt -check

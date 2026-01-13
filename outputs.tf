@@ -17,3 +17,13 @@ output "maintenance_enabled" {
   description = "Whether maintenance mode is currently enabled"
   value       = var.enabled
 }
+
+output "rate_limit_ruleset_id" {
+  description = "The ID of the rate limiting ruleset"
+  value       = var.rate_limit.enabled ? cloudflare_ruleset.rate_limit[0].id : null
+}
+
+output "rate_limit_enabled" {
+  description = "Whether rate limiting is currently enabled"
+  value       = var.rate_limit.enabled
+}

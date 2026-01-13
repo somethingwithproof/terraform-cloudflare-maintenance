@@ -9,7 +9,7 @@ locals {
     maintain = "maintain"
     admin    = "admin"
   }
-  
+
   # Security groups with strict access controls
   security_teams = {
     "security-admins" = {
@@ -19,7 +19,7 @@ locals {
       permission  = "admin"
       repos       = ["all"]
     }
-    
+
     "security-auditors" = {
       description = "Security auditors with read-only access for compliance"
       privacy     = "closed"
@@ -27,26 +27,26 @@ locals {
       permission  = "pull"
       repos       = ["all"]
     }
-    
+
     "infrastructure-team" = {
       description = "Infrastructure team with maintain access to infra repos"
       privacy     = "closed"
       members     = var.infrastructure_users
       permission  = "maintain"
-      repos       = [
+      repos = [
         "terraform-cloudflare-maintenance",
         "terraform-aws-dedicated-host",
         "aws-ssm-automation-scripts",
         "ansible-role-mariadb"
       ]
     }
-    
+
     "developers" = {
       description = "Development team with write access to application repos"
       privacy     = "closed"
       members     = var.developer_users
       permission  = "push"
-      repos       = [
+      repos = [
         "wordpress-gmail-cli",
         "commitkit-rust",
         "rust-findagrave-citation-parser",
@@ -54,13 +54,13 @@ locals {
         "yieldmax-dashboard"
       ]
     }
-    
+
     "devops-engineers" = {
       description = "DevOps engineers with maintain access to CI/CD and automation"
       privacy     = "closed"
       members     = var.devops_users
       permission  = "maintain"
-      repos       = [
+      repos = [
         "jenkins-script-library",
         "chef-cookbook-template",
         "chef-nginx-cookbook",
@@ -69,7 +69,7 @@ locals {
         "chef-tcp-wrappers"
       ]
     }
-    
+
     "contractors" = {
       description = "External contractors with limited read access"
       privacy     = "secret"
@@ -78,7 +78,7 @@ locals {
       repos       = var.contractor_accessible_repos
     }
   }
-  
+
   # Compliance teams for regulatory requirements
   compliance_teams = {
     "compliance-officers" = {
@@ -89,13 +89,13 @@ locals {
       repos       = ["all"]
       audit_log   = true
     }
-    
+
     "data-protection" = {
       description = "Data protection team for GDPR/CCPA compliance"
       privacy     = "secret"
       members     = var.data_protection_users
       permission  = "triage"
-      repos       = [
+      repos = [
         "rust-findagrave-citation-parser",
         "oracle-inventory-management-tool"
       ]
@@ -106,12 +106,12 @@ locals {
 # Create security teams
 resource "github_team" "security_teams" {
   for_each = local.security_teams
-  
+
   name                      = each.key
-  description              = each.value.description
-  privacy                  = each.value.privacy
+  description               = each.value.description
+  privacy                   = each.value.privacy
   create_default_maintainer = false
-  
+
   lifecycle {
     prevent_destroy = true
   }
@@ -120,12 +120,12 @@ resource "github_team" "security_teams" {
 # Create compliance teams
 resource "github_team" "compliance_teams" {
   for_each = local.compliance_teams
-  
+
   name                      = each.key
-  description              = each.value.description
-  privacy                  = each.value.privacy
+  description               = each.value.description
+  privacy                   = each.value.privacy
   create_default_maintainer = false
-  
+
   lifecycle {
     prevent_destroy = true
   }
@@ -143,7 +143,7 @@ resource "github_team_membership" "security_members" {
       }
     }
   ]...)
-  
+
   team_id  = each.value.team_id
   username = each.value.username
   role     = each.value.role
@@ -160,7 +160,7 @@ resource "github_team_membership" "compliance_members" {
       }
     }
   ]...)
-  
+
   team_id  = each.value.team_id
   username = each.value.username
   role     = each.value.role
@@ -170,7 +170,7 @@ resource "github_team_membership" "compliance_members" {
 resource "github_team_repository" "security_repos" {
   for_each = merge([
     for team_name, team in local.security_teams : {
-      for repo_name in (team.repos[0] == "all" ? keys(local.repositories) : team.repos) :
+      for repo_name in(team.repos[0] == "all" ? keys(local.repositories) : team.repos) :
       "${team_name}-${repo_name}" => {
         team_id    = github_team.security_teams[team_name].id
         repository = github_repository.repos[repo_name].name
@@ -178,7 +178,7 @@ resource "github_team_repository" "security_repos" {
       }
     }
   ]...)
-  
+
   team_id    = each.value.team_id
   repository = each.value.repository
   permission = each.value.permission
@@ -187,7 +187,7 @@ resource "github_team_repository" "security_repos" {
 resource "github_team_repository" "compliance_repos" {
   for_each = merge([
     for team_name, team in local.compliance_teams : {
-      for repo_name in (team.repos[0] == "all" ? keys(local.repositories) : team.repos) :
+      for repo_name in(team.repos[0] == "all" ? keys(local.repositories) : team.repos) :
       "${team_name}-${repo_name}" => {
         team_id    = github_team.compliance_teams[team_name].id
         repository = github_repository.repos[repo_name].name
@@ -195,7 +195,7 @@ resource "github_team_repository" "compliance_repos" {
       }
     }
   ]...)
-  
+
   team_id    = each.value.team_id
   repository = each.value.repository
   permission = each.value.permission
@@ -204,9 +204,9 @@ resource "github_team_repository" "compliance_repos" {
 # Team sync with external identity provider (Optional)
 resource "github_team_sync_group_mapping" "security_teams" {
   for_each = var.enable_team_sync ? local.security_teams : {}
-  
+
   team_slug = each.key
-  
+
   dynamic "group" {
     for_each = var.team_sync_groups[each.key] != null ? var.team_sync_groups[each.key] : []
     content {
@@ -220,7 +220,7 @@ resource "github_team_sync_group_mapping" "security_teams" {
 # CODEOWNERS file management
 resource "github_repository_file" "codeowners" {
   for_each = var.enable_codeowners ? local.repositories : {}
-  
+
   repository          = github_repository.repos[each.key].name
   branch              = github_repository.repos[each.key].default_branch
   file                = ".github/CODEOWNERS"
@@ -228,7 +228,7 @@ resource "github_repository_file" "codeowners" {
   commit_author       = "Terraform"
   commit_email        = "terraform@example.com"
   overwrite_on_create = true
-  
+
   content = templatefile("${path.module}/templates/CODEOWNERS.tpl", {
     repository = each.key
     teams      = local.security_teams
@@ -239,7 +239,7 @@ resource "github_repository_file" "codeowners" {
 # Security policy file
 resource "github_repository_file" "security_policy" {
   for_each = local.repositories
-  
+
   repository          = github_repository.repos[each.key].name
   branch              = github_repository.repos[each.key].default_branch
   file                = ".github/SECURITY.md"
@@ -247,10 +247,10 @@ resource "github_repository_file" "security_policy" {
   commit_author       = "Terraform"
   commit_email        = "terraform@example.com"
   overwrite_on_create = true
-  
+
   content = templatefile("${path.module}/templates/SECURITY.md.tpl", {
-    repository         = each.key
-    security_contacts  = var.security_contacts
+    repository               = each.key
+    security_contacts        = var.security_contacts
     vulnerability_disclosure = var.vulnerability_disclosure_url
   })
 }
@@ -324,7 +324,7 @@ variable "enable_team_sync" {
 
 variable "team_sync_groups" {
   description = "Mapping of teams to external identity provider groups"
-  type        = map(list(object({
+  type = map(list(object({
     group_id          = string
     group_name        = string
     group_description = string

@@ -1,4 +1,4 @@
-name: Terraform CI
+name: OpenTofu CI
 
 on:
   push:
@@ -21,23 +21,22 @@ concurrency:
 
 jobs:
   validate:
-    name: Validate Terraform
+    name: Validate OpenTofu
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: 1.7.1
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          tofu_version: 1.8.0
 
-      - name: Terraform Init
-        run: terraform init -backend=false
+      - name: OpenTofu Init
+        run: tofu init -backend=false
 
-      - name: Terraform Validate
-        run: terraform validate
+      - name: OpenTofu Validate
+        run: tofu validate
 
   tflint:
     name: TFLint
@@ -99,27 +98,26 @@ jobs:
           flags: worker
           fail_ci_if_error: false
 
-  test-terraform:
-    name: Run Terraform Tests
+  test-opentofu:
+    name: Run OpenTofu Tests
     runs-on: ubuntu-latest
     needs: [validate, tflint, tfsec]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: 1.7.1
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          tofu_version: 1.8.0
 
-      - name: Terraform Init
-        run: terraform init -backend=false
+      - name: OpenTofu Init
+        run: tofu init -backend=false
 
-      - name: Run Terraform Tests
+      - name: Run OpenTofu Tests
         run: |
-          terraform test -filter tests/basic.tftest.hcl || echo "Basic tests check skipped in CI"
-          terraform test -filter tests/worker.tftest.hcl || echo "Worker tests check skipped in CI"
+          tofu test -filter tests/basic.tftest.hcl || echo "Basic tests check skipped in CI"
+          tofu test -filter tests/worker.tftest.hcl || echo "Worker tests check skipped in CI"
         env:
           TF_VAR_cloudflare_api_token: ${{ secrets.TEST_CF_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ secrets.TEST_CF_ACCOUNT_ID }}

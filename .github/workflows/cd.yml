@@ -1,4 +1,4 @@
-name: Terraform CD
+name: OpenTofu CD
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
     name: Deploy to ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -41,20 +41,19 @@ jobs:
       - name: Build Worker
         run: cd worker && npm ci && npm run build
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@v1
         with:
-          terraform_version: 1.7.1
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          tofu_version: 1.8.0
 
-      - name: Terraform Init
-        run: terraform init
+      - name: OpenTofu Init
+        run: tofu init
         env:
           TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
 
-      - name: Terraform Plan
+      - name: OpenTofu Plan
         id: plan
-        run: terraform plan -out=tfplan
+        run: tofu plan -out=tfplan
         env:
           TF_VAR_cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}
@@ -62,9 +61,9 @@ jobs:
           TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
           TF_VAR_enabled: ${{ (github.event.inputs.environment == 'production') && 'false' || 'true' }}
 
-      - name: Terraform Apply
+      - name: OpenTofu Apply
         if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: terraform apply -auto-approve tfplan
+        run: tofu apply -auto-approve tfplan
         env:
           TF_VAR_cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}
           TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}

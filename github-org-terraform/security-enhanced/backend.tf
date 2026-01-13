@@ -6,9 +6,9 @@ terraform {
     encrypt        = true
     kms_key_id     = "arn:aws:kms:us-west-2:ACCOUNT_ID:key/KMS_KEY_ID"
     dynamodb_table = "terraform-state-locks"
-    
+
     # Additional security settings
-    versioning     = true
+    versioning = true
     server_side_encryption_configuration {
       rule {
         apply_server_side_encryption_by_default {

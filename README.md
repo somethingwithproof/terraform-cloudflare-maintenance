@@ -2,11 +2,13 @@
 
 [![License](https://img.shields.io/github/license/thomasvincent/terraform-cloudflare-maintenance.svg)](LICENSE)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
-[![Terraform Version](https://img.shields.io/badge/terraform-%3E%3D1.5.0-blueviolet)](versions.tf)
+[![OpenTofu Version](https://img.shields.io/badge/OpenTofu-%3E%3D1.6.0-blue)](versions.tf)
 [![Cloudflare Provider](https://img.shields.io/badge/provider-cloudflare%20v5.2-1e90ff)](versions.tf)
 [![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](tests/)
 
-Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Terraform.
+Enterprise-grade maintenance mode solution for Cloudflare infrastructure with OpenTofu.
+
+> **Note**: This module has been migrated from Terraform to [OpenTofu](https://opentofu.org/), the open-source fork of Terraform. OpenTofu is a drop-in replacement and is fully compatible with existing Terraform configurations.
 
 ## Table of Contents
 
@@ -58,7 +60,7 @@ provider "cloudflare" {
 
 ## Requirements
 
-- Terraform >= 1.5.0
+- OpenTofu >= 1.6.0 (or Terraform >= 1.5.0)
 - Cloudflare Provider >= 5.2
 - Cloudflare Account with Workers enabled
 - Cloudflare API Token with appropriate permissions:
@@ -84,10 +86,10 @@ module "maintenance" {
 }
 ```
 
-2. Initialize your Terraform workspace:
+2. Initialize your OpenTofu workspace:
 
 ```bash
-terraform init
+tofu init
 ```
 
 
