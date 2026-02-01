@@ -1,0 +1,25 @@
+{
+  "name": "terraform-cloudflare-maintenance-tests",
+  "version": "1.0.0",
+  "description": "Test suite for Terraform Cloudflare Maintenance Module",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:unit": "vitest run --dir unit",
+    "test:integration": "vitest run --dir integration",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "miniflare": "^3.20241106.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.15.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
