@@ -13,7 +13,7 @@ terraform {
       version = ">= 2.0.0"
     }
   }
-  required_version = ">= 1.3.0"
+  required_version = ">= 1.6.0"
 }
 
 provider "cloudflare" {
@@ -41,6 +41,7 @@ module "maintenance" {
 variable "cloudflare_api_token" {
   description = "Cloudflare API token with least privileges"
   type        = string
+  sensitive   = true
   default     = "test-api-token"
 }
 

@@ -8,7 +8,7 @@ resource "github_branch_protection" "main_protection" {
   pattern       = "main"
 
   # Core security settings
-  enforce_admins         = false
+  enforce_admins         = true
   require_signed_commits = var.require_signed_commits
 
   # PR review requirements

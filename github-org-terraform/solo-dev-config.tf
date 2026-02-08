@@ -75,7 +75,7 @@ resource "github_branch_protection" "solo_protection" {
 
   # Light protection - you can still force push if needed
   enforce_admins          = false
-  allows_force_pushes     = true
+  allows_force_pushes     = false
   allows_deletions        = false
   require_signed_commits  = false
   required_linear_history = false
