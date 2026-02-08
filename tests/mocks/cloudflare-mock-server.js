@@ -264,9 +264,9 @@ async function handleRequest(req, res) {
 function startServer() {
   const server = createServer(handleRequest);
 
-  server.listen(PORT, () => {
-    console.log(`[Mock Server] Cloudflare API Mock Server running on http://localhost:${PORT}`);
-    console.log(`[Mock Server] Use CLOUDFLARE_API_BASE_URL=http://localhost:${PORT}/client/v4 for testing`);
+  server.listen(PORT, '127.0.0.1', () => {
+    console.log(`[Mock Server] Cloudflare API Mock Server running on http://127.0.0.1:${PORT}`);
+    console.log(`[Mock Server] Use CLOUDFLARE_API_BASE_URL=http://127.0.0.1:${PORT}/client/v4 for testing`);
   });
 
   return server;

@@ -64,8 +64,8 @@ resource "null_resource" "maintenance_notification" {
     command = <<-EOT
       curl -X POST \
         -H "Content-Type: application/json" \
-        -d '{"status": "maintenance", "start_time": "${var.maintenance_start_time}", "end_time": "${var.maintenance_end_time}"}' \
-        ${var.monitoring_webhook_url}
+        -d '{"status": "maintenance", "start_time": "${replace(var.maintenance_start_time, "'", "")}", "end_time": "${replace(var.maintenance_end_time, "'", "")}"}' \
+        "${replace(var.monitoring_webhook_url, "'", "")}"
     EOT
   }
 }

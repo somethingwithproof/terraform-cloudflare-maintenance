@@ -45,21 +45,21 @@ locals {
     idx => contains(local.slack_urls, url) ? replace(local.slack_notification_template, "{{URL}}", replace(url, "slack://", "https://hooks.slack.com/services/")) :
     contains(local.pagerduty_urls, url) ? replace(local.pagerduty_notification_template, "{{KEY}}", replace(url, "pagerduty://", "")) :
     contains(local.webhook_urls, url) ? replace(local.webhook_notification_template, "{{URL}}", replace(url, "webhook://", "")) :
-    "echo 'Unknown notification type: ${url}'"
+    "echo 'Unknown notification type'"
   }
 
   # Slack notification template
   slack_notification_template = <<-EOT
-    curl -X POST '{{URL}}' \
-      -H 'Content-Type: application/json' \
+    curl -X POST "{{URL}}" \
+      -H "Content-Type: application/json" \
       -d '{
-        "text": "🔧 Maintenance ${var.maintenance_status}",
+        "text": "Maintenance ${replace(var.maintenance_status, "'", "")}",
         "blocks": [
           {
             "type": "header",
             "text": {
               "type": "plain_text",
-              "text": "Maintenance ${var.maintenance_status}: ${var.schedule_name}"
+              "text": "Maintenance ${replace(var.maintenance_status, "'", "")}: ${replace(var.schedule_name, "'", "")}"
             }
           },
           {
@@ -67,19 +67,19 @@ locals {
             "fields": [
               {
                 "type": "mrkdwn",
-                "text": "*Status:*\n${var.maintenance_status}"
+                "text": "*Status:*\n${replace(var.maintenance_status, "'", "")}"
               },
               {
                 "type": "mrkdwn",
-                "text": "*Window:*\n${var.maintenance_window.start_time} - ${var.maintenance_window.end_time}"
+                "text": "*Window:*\n${replace(var.maintenance_window.start_time, "'", "")} - ${replace(var.maintenance_window.end_time, "'", "")}"
               },
               {
                 "type": "mrkdwn",
-                "text": "*Environment:*\n${var.environment}"
+                "text": "*Environment:*\n${replace(var.environment, "'", "")}"
               },
               {
                 "type": "mrkdwn",
-                "text": "*Schedule:*\n${var.schedule_name}"
+                "text": "*Schedule:*\n${replace(var.schedule_name, "'", "")}"
               }
             ]
           }
@@ -89,21 +89,21 @@ locals {
 
   # PagerDuty notification template
   pagerduty_notification_template = <<-EOT
-    curl -X POST 'https://events.pagerduty.com/v2/enqueue' \
-      -H 'Content-Type: application/json' \
+    curl -X POST "https://events.pagerduty.com/v2/enqueue" \
+      -H "Content-Type: application/json" \
       -d '{
         "routing_key": "{{KEY}}",
         "event_action": "trigger",
         "payload": {
-          "summary": "Maintenance ${var.maintenance_status}: ${var.schedule_name}",
+          "summary": "Maintenance ${replace(var.maintenance_status, "'", "")}: ${replace(var.schedule_name, "'", "")}",
           "severity": "warning",
           "source": "terraform-cloudflare-maintenance",
           "custom_details": {
-            "status": "${var.maintenance_status}",
-            "environment": "${var.environment}",
-            "schedule": "${var.schedule_name}",
-            "start_time": "${var.maintenance_window.start_time}",
-            "end_time": "${var.maintenance_window.end_time}"
+            "status": "${replace(var.maintenance_status, "'", "")}",
+            "environment": "${replace(var.environment, "'", "")}",
+            "schedule": "${replace(var.schedule_name, "'", "")}",
+            "start_time": "${replace(var.maintenance_window.start_time, "'", "")}",
+            "end_time": "${replace(var.maintenance_window.end_time, "'", "")}"
           }
         }
       }'
@@ -111,15 +111,15 @@ locals {
 
   # Generic webhook notification template
   webhook_notification_template = <<-EOT
-    curl -X POST '{{URL}}' \
-      -H 'Content-Type: application/json' \
+    curl -X POST "{{URL}}" \
+      -H "Content-Type: application/json" \
       -d '{
-        "status": "${var.maintenance_status}",
-        "schedule_name": "${var.schedule_name}",
-        "environment": "${var.environment}",
+        "status": "${replace(var.maintenance_status, "'", "")}",
+        "schedule_name": "${replace(var.schedule_name, "'", "")}",
+        "environment": "${replace(var.environment, "'", "")}",
         "maintenance_window": {
-          "start_time": "${var.maintenance_window.start_time}",
-          "end_time": "${var.maintenance_window.end_time}"
+          "start_time": "${replace(var.maintenance_window.start_time, "'", "")}",
+          "end_time": "${replace(var.maintenance_window.end_time, "'", "")}"
         }
       }'
   EOT

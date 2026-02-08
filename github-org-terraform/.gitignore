@@ -13,6 +13,7 @@ terraform.rc
 crash.log
 crash.*.log
 *.tfplan
+tfplan
 .DS_Store
 .env
 .env.local

@@ -61,4 +61,5 @@ variable "monitoring_webhook_url" {
   description = "Webhook URL for notifying monitoring systems about maintenance"
   type        = string
   default     = ""
+  sensitive   = true
 }

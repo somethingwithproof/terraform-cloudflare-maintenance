@@ -55,7 +55,7 @@ async function handleRequest(request) {
   
   // Alright, time to show everyone the "We'll be right back" page
   // This HTML is nicer than the default 503 error at least
-  const customStyles = CUSTOM_CSS || ''
+  const customStyles = (CUSTOM_CSS || '').replace(/<\/style>/gi, '')
   
   // Sanitize contact email to prevent XSS
   const sanitizedEmail = sanitizeEmail(CONTACT_EMAIL || '')
@@ -65,7 +65,7 @@ async function handleRequest(request) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${MAINTENANCE_TITLE || 'Maintenance Mode'}</title>
+  <title>${escapeHtml(MAINTENANCE_TITLE) || 'Maintenance Mode'}</title>
   <style>
     /* Making it look professional even when things aren't working */
     body {
@@ -94,8 +94,8 @@ async function handleRequest(request) {
 <body>
   <div class="container">
     ${logoHtml}
-    <h1>${MAINTENANCE_TITLE || 'Maintenance Mode'}</h1>
-    <p>${MAINTENANCE_MESSAGE || 'We are currently performing scheduled maintenance. We will be back shortly.'}</p>
+    <h1>${escapeHtml(MAINTENANCE_TITLE) || 'Maintenance Mode'}</h1>
+    <p>${escapeHtml(MAINTENANCE_MESSAGE) || 'We are currently performing scheduled maintenance. We will be back shortly.'}</p>
     ${getMaintenanceWindowMessage()}
     ${sanitizedEmail ? `<p class="contact">Contact: <a href="mailto:${sanitizedEmail}">${sanitizedEmail}</a></p>` : ''}
   </div>
@@ -109,7 +109,11 @@ async function handleRequest(request) {
     headers: {
       'Content-Type': 'text/html;charset=UTF-8',
       'Cache-Control': 'no-store, no-cache, must-revalidate', // Don't cache this disaster
-      'Retry-After': '3600' // Try again in an hour (fingers crossed we're done by then)
+      'Retry-After': '3600', // Try again in an hour (fingers crossed we're done by then)
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:;",
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer'
     }
   })
 }
@@ -156,6 +160,15 @@ function isValidHttpsUrl(url) {
   } catch (e) {
     return false
   }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
 }
 
 function sanitizeEmail(email) {

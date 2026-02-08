@@ -30,6 +30,7 @@ variable "slack_webhook_url" {
   description = "Slack webhook URL in format slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
   type        = string
   default     = ""
+  sensitive   = true
 }
 
 variable "pagerduty_routing_key" {
