@@ -61,39 +61,37 @@ provider "cloudflare" {
 }
 ```
 
-## Requirements
+## Prerequisites
 
 - OpenTofu >= 1.6.0 (or Terraform >= 1.5.0)
 - Cloudflare Provider >= 5.2
 - Cloudflare Account with Workers enabled
+- Valid Cloudflare API credentials
 - Cloudflare API Token with appropriate permissions:
   - Account.Workers Scripts:Edit
   - Zone.Workers Routes:Edit
   - Zone.DNS:Edit (if using custom DNS records)
   - Zone.Firewall Services:Edit (if using IP allowlisting)
 
-## Installation
+## Quick Start
 
-### Standard Installation
-
-1. Add the module to your Terraform configuration:
-
-```hcl
-module "maintenance" {
-  source  = "github.com/thomasvincent/terraform-cloudflare-maintenance"
-  version = "2.0.0"
-  
-  cloudflare_api_token = var.cloudflare_api_token
-  cloudflare_account_id = var.cloudflare_account_id
-  cloudflare_zone_id = var.cloudflare_zone_id
-}
-```
-
-2. Initialize your OpenTofu workspace:
+Initialize and apply:
 
 ```bash
-tofu init
+terraform init
+terraform plan
+terraform apply
 ```
+
+## Module Structure
+
+- `main.tf` - Primary Cloudflare Worker and route definitions
+- `variables.tf` - Input variable declarations with validation
+- `outputs.tf` - Output value definitions
+- `versions.tf` - Provider version constraints
+- `modules/notifications/` - Notification integration submodule
+- `examples/` - Usage examples (basic, advanced, scheduled)
+- `tests/` - Integration tests
 
 
 ## Usage
@@ -337,6 +335,23 @@ notification_urls = ["webhook://https://example.com/webhook"]
 ```
 
 See the [notifications module documentation](modules/notifications/README.md) for more details.
+
+## Development
+
+Format code:
+```bash
+terraform fmt -recursive
+```
+
+Validate configuration:
+```bash
+terraform validate
+```
+
+Run linting:
+```bash
+tflint
+```
 
 ## Testing
 

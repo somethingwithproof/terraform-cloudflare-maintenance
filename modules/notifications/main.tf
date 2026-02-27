@@ -38,9 +38,9 @@ resource "null_resource" "notification" {
 
 locals {
   # Categorize notification URLs by type
-  slack_urls      = [for url in var.notification_urls : url if startswith(url, "slack://")]
-  pagerduty_urls  = [for url in var.notification_urls : url if startswith(url, "pagerduty://")]
-  webhook_urls    = [for url in var.notification_urls : url if startswith(url, "webhook://")]
+  slack_urls     = [for url in var.notification_urls : url if startswith(url, "slack://")]
+  pagerduty_urls = [for url in var.notification_urls : url if startswith(url, "pagerduty://")]
+  webhook_urls   = [for url in var.notification_urls : url if startswith(url, "webhook://")]
 
   # Resolve protocol-prefixed URLs to actual endpoint URLs
   resolved_urls = {

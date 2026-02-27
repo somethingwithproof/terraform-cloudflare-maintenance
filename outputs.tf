@@ -41,7 +41,7 @@ output "maintenance_page_url" {
 locals {
   # Extract clean domain from worker_route pattern (e.g., "*.example.com/*" -> "example.com")
   clean_domain = trim(replace(replace(var.worker_route, "*.", ""), "/*", ""), "/")
-  
+
   # Construct maintenance status page URL
   maintenance_status_url = format("https://maintenance-status-%s.%s", var.environment, local.clean_domain)
 }

@@ -225,9 +225,9 @@ run "verify_rate_limit_long_period" {
     rate_limit = {
       enabled             = true
       requests_per_period = 500
-      period              = 3600  # 1 hour
+      period              = 3600 # 1 hour
       action              = "block"
-      mitigation_timeout  = 7200  # 2 hours
+      mitigation_timeout  = 7200 # 2 hours
     }
   }
 
@@ -299,9 +299,9 @@ run "verify_rate_limit_minimum_period" {
     rate_limit = {
       enabled             = true
       requests_per_period = 10
-      period              = 10  # Minimum allowed period
+      period              = 10 # Minimum allowed period
       action              = "block"
-      mitigation_timeout  = 60  # Minimum allowed timeout
+      mitigation_timeout  = 60 # Minimum allowed timeout
     }
   }
 
@@ -328,9 +328,9 @@ run "verify_rate_limit_maximum_period" {
     rate_limit = {
       enabled             = true
       requests_per_period = 10000
-      period              = 86400  # Maximum allowed period (24 hours)
+      period              = 86400 # Maximum allowed period (24 hours)
       action              = "block"
-      mitigation_timeout  = 86400  # Maximum allowed timeout
+      mitigation_timeout  = 86400 # Maximum allowed timeout
     }
   }
 
