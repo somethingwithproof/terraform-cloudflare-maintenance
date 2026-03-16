@@ -22,7 +22,7 @@ concurrency:
 jobs:
   validate:
     name: Validate OpenTofu
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout code
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6
@@ -40,7 +40,7 @@ jobs:
 
   tflint:
     name: TFLint
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout code
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6
@@ -58,7 +58,7 @@ jobs:
 
   tfsec:
     name: TFSec
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout code
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6
@@ -70,7 +70,7 @@ jobs:
 
   test-worker:
     name: Test Cloudflare Worker
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     steps:
       - name: Checkout code
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6
@@ -100,7 +100,7 @@ jobs:
 
   test-opentofu:
     name: Run OpenTofu Tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     needs: [validate, tflint, tfsec]
     steps:
       - name: Checkout code
