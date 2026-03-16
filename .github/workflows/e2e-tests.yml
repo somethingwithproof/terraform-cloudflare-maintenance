@@ -30,7 +30,7 @@ jobs:
   # Unit tests for worker JavaScript
   unit-tests:
     name: Unit Tests
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     defaults:
       run:
         working-directory: tests
@@ -61,7 +61,7 @@ jobs:
   # Integration tests using Miniflare
   integration-tests:
     name: Integration Tests
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     defaults:
       run:
         working-directory: tests
@@ -92,7 +92,7 @@ jobs:
   # Terraform native tests
   terraform-tests:
     name: Terraform Tests
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     strategy:
       fail-fast: false
       matrix:
@@ -120,7 +120,7 @@ jobs:
   # Go-based Terratest E2E tests
   terratest:
     name: Terratest E2E
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e == 'true'
     needs: [unit-tests, integration-tests, terraform-tests]
     defaults:
@@ -154,7 +154,7 @@ jobs:
   # Security scanning
   security-scan:
     name: Security Scan
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     steps:
       - name: Checkout code
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
@@ -211,7 +211,7 @@ jobs:
   # Test summary job
   test-summary:
     name: Test Summary
-    runs-on: [self-hosted]
+    runs-on: [self-hosted, linux, x64]
     needs: [unit-tests, integration-tests, terraform-tests, security-scan, lint]
     if: always()
     steps:
