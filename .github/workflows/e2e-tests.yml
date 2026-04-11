@@ -52,7 +52,7 @@ jobs:
         run: npm run test:unit
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           directory: tests/coverage
           flags: unit
@@ -83,7 +83,7 @@ jobs:
         run: npm run test:integration
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           directory: tests/coverage
           flags: integration
