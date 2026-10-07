@@ -1,10 +1,13 @@
 # Terraform Cloudflare Maintenance
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=somethingwithproof_terraform-cloudflare-maintenance&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=somethingwithproof_terraform-cloudflare-maintenance)
+[![Release](https://img.shields.io/github/v/release/somethingwithproof/terraform-cloudflare-maintenance)](https://github.com/somethingwithproof/terraform-cloudflare-maintenance/releases)
 [![License](https://img.shields.io/github/license/thomasvincent/terraform-cloudflare-maintenance.svg)](LICENSE)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 [![OpenTofu Version](https://img.shields.io/badge/OpenTofu-%3E%3D1.6.0-blue)](versions.tf)
 [![Cloudflare Provider](https://img.shields.io/badge/provider-cloudflare%20v5.2-1e90ff)](versions.tf)
 [![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](tests/)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/somethingwithproof/terraform-cloudflare-maintenance/badge)](https://scorecard.dev/viewer/?uri=github.com/somethingwithproof/terraform-cloudflare-maintenance)
 
 Enterprise-grade maintenance mode solution for Cloudflare infrastructure with OpenTofu.
 
