@@ -23,13 +23,16 @@ updates:
           - "patch"
 
   # =============================================
-  # Terraform (root module, local modules, GitHub org config)
+  # Terraform (root module, local modules, GitHub org config, test harness)
+  # github-org-terraform/security-enhanced is not tracked: its module "backend_setup"
+  # points at ./modules/backend-setup, which does not exist, so the directory cannot be parsed.
   # =============================================
   - package-ecosystem: "terraform"
     directories:
       - "/"
       - "/modules/notifications"
       - "/github-org-terraform"
+      - "/tests"
     schedule:
       interval: "weekly"
       day: "monday"
