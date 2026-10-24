@@ -46,6 +46,14 @@ describe("Worker Integration Tests", () => {
     });
   });
 
+  function setBindings(overrides = {}) {
+    return mf.setOptions({
+      script: workerScript,
+      fetchMock,
+      bindings: { ...defaultBindings, ...overrides },
+    });
+  }
+
   afterAll(async () => {
     if (mf) {
       await mf.dispose();
@@ -54,11 +62,7 @@ describe("Worker Integration Tests", () => {
 
   describe("Maintenance Mode Enabled", () => {
     beforeEach(async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: { ...defaultBindings },
-      });
+      await setBindings();
     });
 
     it("should return 503 status when maintenance is enabled", async () => {
@@ -128,15 +132,10 @@ describe("Worker Integration Tests", () => {
 
   describe("IP Allowlist", () => {
     beforeEach(async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          ALLOWED_IPS: '["192.168.1.1", "10.0.0.1"]',
-        },
+      await setBindings({
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        ALLOWED_IPS: '["192.168.1.1", "10.0.0.1"]',
       });
     });
 
@@ -162,15 +161,10 @@ describe("Worker Integration Tests", () => {
 
   describe("Region Allowlist", () => {
     beforeEach(async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          ALLOWED_REGIONS: '["US", "CA"]',
-        },
+      await setBindings({
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        ALLOWED_REGIONS: '["US", "CA"]',
       });
     });
 
@@ -196,18 +190,13 @@ describe("Worker Integration Tests", () => {
       const start = new Date(now.getTime() - 3600000).toISOString(); // 1 hour ago
       const end = new Date(now.getTime() + 3600000).toISOString(); // 1 hour from now
 
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_ENABLED: "false",
-          MAINTENANCE_TITLE: "Scheduled Maintenance",
-          MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
-          CONTACT_EMAIL: "",
-          MAINTENANCE_WINDOW_START: start,
-          MAINTENANCE_WINDOW_END: end,
-        },
+      await setBindings({
+        MAINTENANCE_ENABLED: "false",
+        MAINTENANCE_TITLE: "Scheduled Maintenance",
+        MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
+        CONTACT_EMAIL: "",
+        MAINTENANCE_WINDOW_START: start,
+        MAINTENANCE_WINDOW_END: end,
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -220,18 +209,13 @@ describe("Worker Integration Tests", () => {
       const start = new Date(now.getTime() + 3600000).toISOString(); // 1 hour from now
       const end = new Date(now.getTime() + 7200000).toISOString(); // 2 hours from now
 
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_ENABLED: "false",
-          MAINTENANCE_TITLE: "Scheduled Maintenance",
-          MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
-          CONTACT_EMAIL: "",
-          MAINTENANCE_WINDOW_START: start,
-          MAINTENANCE_WINDOW_END: end,
-        },
+      await setBindings({
+        MAINTENANCE_ENABLED: "false",
+        MAINTENANCE_TITLE: "Scheduled Maintenance",
+        MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
+        CONTACT_EMAIL: "",
+        MAINTENANCE_WINDOW_START: start,
+        MAINTENANCE_WINDOW_END: end,
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -244,17 +228,12 @@ describe("Worker Integration Tests", () => {
       const start = new Date(now.getTime() - 3600000).toISOString();
       const end = new Date(now.getTime() + 3600000).toISOString();
 
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Scheduled Maintenance",
-          MAINTENANCE_MESSAGE: "In progress",
-          CONTACT_EMAIL: "",
-          MAINTENANCE_WINDOW_START: start,
-          MAINTENANCE_WINDOW_END: end,
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Scheduled Maintenance",
+        MAINTENANCE_MESSAGE: "In progress",
+        CONTACT_EMAIL: "",
+        MAINTENANCE_WINDOW_START: start,
+        MAINTENANCE_WINDOW_END: end,
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -265,16 +244,11 @@ describe("Worker Integration Tests", () => {
 
   describe("Custom Styling", () => {
     it("should include custom CSS when provided", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          CUSTOM_CSS: "body { background-color: #ff0000; }",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        CUSTOM_CSS: "body { background-color: #ff0000; }",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -283,16 +257,11 @@ describe("Worker Integration Tests", () => {
     });
 
     it("should include logo when valid HTTPS URL provided", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          LOGO_URL: "https://example.com/logo.png",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        LOGO_URL: "https://example.com/logo.png",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -301,16 +270,11 @@ describe("Worker Integration Tests", () => {
     });
 
     it("should not include logo when HTTP URL provided", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          LOGO_URL: "http://example.com/logo.png",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        LOGO_URL: "http://example.com/logo.png",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -321,16 +285,11 @@ describe("Worker Integration Tests", () => {
 
   describe("Security Tests", () => {
     it("should prevent XSS via logo URL", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          LOGO_URL: "javascript:alert(1)",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        LOGO_URL: "javascript:alert(1)",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -339,16 +298,11 @@ describe("Worker Integration Tests", () => {
     });
 
     it("should prevent XSS via data URL in logo", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-          LOGO_URL: "data:text/html,<script>alert(1)</script>",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
+        LOGO_URL: "data:text/html,<script>alert(1)</script>",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -357,15 +311,10 @@ describe("Worker Integration Tests", () => {
     });
 
     it("should sanitize email addresses", async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "<script>alert(1)</script>@example.com",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "<script>alert(1)</script>@example.com",
       });
 
       const response = await mf.dispatchFetch("https://example.com/");
@@ -376,15 +325,10 @@ describe("Worker Integration Tests", () => {
 
   describe("Multiple Path Tests", () => {
     beforeEach(async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
       });
     });
 
@@ -417,15 +361,10 @@ describe("Worker Integration Tests", () => {
 
   describe("HTTP Method Tests", () => {
     beforeEach(async () => {
-      await mf.setOptions({
-        script: workerScript,
-        fetchMock,
-        bindings: {
-          ...defaultBindings,
-          MAINTENANCE_TITLE: "Maintenance",
-          MAINTENANCE_MESSAGE: "Under maintenance",
-          CONTACT_EMAIL: "",
-        },
+      await setBindings({
+        MAINTENANCE_TITLE: "Maintenance",
+        MAINTENANCE_MESSAGE: "Under maintenance",
+        CONTACT_EMAIL: "",
       });
     });
 
