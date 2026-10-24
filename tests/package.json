@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "vitest": "^4.1.8",
-    "miniflare": "^3.20241106.0",
+    "miniflare": "^4.20260730.0",
     "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^9.15.0"
   },
