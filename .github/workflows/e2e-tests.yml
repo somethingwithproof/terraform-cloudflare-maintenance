@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       run_e2e:
-        description: 'Run E2E tests with real Cloudflare API'
+        description: "Run E2E tests with real Cloudflare API"
         required: false
-        default: 'false'
+        default: "false"
         type: boolean
 
 permissions:
@@ -22,9 +22,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: '1.22'
-  NODE_VERSION: '20'
-  TOFU_VERSION: '1.8.0'
+  GO_VERSION: "1.22"
+  NODE_VERSION: "24"
+  TOFU_VERSION: "1.8.0"
 
 jobs:
   # Unit tests for worker JavaScript
@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: tests/package-lock.json
 
       - name: Install dependencies
@@ -73,7 +73,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
           cache-dependency-path: tests/package-lock.json
 
       - name: Install dependencies
@@ -162,17 +162,17 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results
         uses: github/codeql-action/upload-sarif@v4.39.0
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
       - name: Run TFSec
         uses: aquasecurity/tfsec-action@v1.0.3
