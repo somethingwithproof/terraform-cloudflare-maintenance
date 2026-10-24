@@ -9,6 +9,19 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 describe("Worker Integration Tests", () => {
+  const defaultBindings = {
+    MAINTENANCE_ENABLED: "true",
+    MAINTENANCE_TITLE: "System Maintenance",
+    MAINTENANCE_MESSAGE: "We are currently performing scheduled maintenance.",
+    CONTACT_EMAIL: "support@example.com",
+    CUSTOM_CSS: "",
+    LOGO_URL: "",
+    MAINTENANCE_WINDOW_START: "",
+    MAINTENANCE_WINDOW_END: "",
+    ALLOWED_IPS: "[]",
+    ALLOWED_REGIONS: "[]",
+  };
+
   let mf;
   let workerScript;
   let fetchMock;
@@ -29,19 +42,7 @@ describe("Worker Integration Tests", () => {
     mf = new Miniflare({
       script: workerScript,
       fetchMock,
-      bindings: {
-        MAINTENANCE_ENABLED: "true",
-        MAINTENANCE_TITLE: "System Maintenance",
-        MAINTENANCE_MESSAGE:
-          "We are currently performing scheduled maintenance.",
-        CONTACT_EMAIL: "support@example.com",
-        CUSTOM_CSS: "",
-        LOGO_URL: "",
-        MAINTENANCE_WINDOW_START: "",
-        MAINTENANCE_WINDOW_END: "",
-        ALLOWED_IPS: "[]",
-        ALLOWED_REGIONS: "[]",
-      },
+      bindings: { ...defaultBindings },
     });
   });
 
@@ -56,19 +57,7 @@ describe("Worker Integration Tests", () => {
       await mf.setOptions({
         script: workerScript,
         fetchMock,
-        bindings: {
-          MAINTENANCE_ENABLED: "true",
-          MAINTENANCE_TITLE: "System Maintenance",
-          MAINTENANCE_MESSAGE:
-            "We are currently performing scheduled maintenance.",
-          CONTACT_EMAIL: "support@example.com",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
-        },
+        bindings: { ...defaultBindings },
       });
     });
 
@@ -123,19 +112,7 @@ describe("Worker Integration Tests", () => {
       await mf.setOptions({
         script: workerScript,
         fetchMock,
-        bindings: {
-          MAINTENANCE_ENABLED: "false",
-          MAINTENANCE_TITLE: "System Maintenance",
-          MAINTENANCE_MESSAGE:
-            "We are currently performing scheduled maintenance.",
-          CONTACT_EMAIL: "support@example.com",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
-        },
+        bindings: { ...defaultBindings, MAINTENANCE_ENABLED: "false" },
       });
     });
 
@@ -155,16 +132,10 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
-          MAINTENANCE_TITLE: "System Maintenance",
+          ...defaultBindings,
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
           ALLOWED_IPS: '["192.168.1.1", "10.0.0.1"]',
-          ALLOWED_REGIONS: "[]",
         },
       });
     });
@@ -195,15 +166,9 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
-          MAINTENANCE_TITLE: "System Maintenance",
+          ...defaultBindings,
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
           ALLOWED_REGIONS: '["US", "CA"]',
         },
       });
@@ -235,16 +200,13 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "false", // Manual toggle is off
+          ...defaultBindings,
+          MAINTENANCE_ENABLED: "false",
           MAINTENANCE_TITLE: "Scheduled Maintenance",
           MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
           MAINTENANCE_WINDOW_START: start,
           MAINTENANCE_WINDOW_END: end,
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -262,16 +224,13 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
+          ...defaultBindings,
           MAINTENANCE_ENABLED: "false",
           MAINTENANCE_TITLE: "Scheduled Maintenance",
           MAINTENANCE_MESSAGE: "Scheduled maintenance in progress",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
           MAINTENANCE_WINDOW_START: start,
           MAINTENANCE_WINDOW_END: end,
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -289,16 +248,12 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Scheduled Maintenance",
           MAINTENANCE_MESSAGE: "In progress",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
           MAINTENANCE_WINDOW_START: start,
           MAINTENANCE_WINDOW_END: end,
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -314,16 +269,11 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
           CUSTOM_CSS: "body { background-color: #ff0000; }",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -337,16 +287,11 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
           LOGO_URL: "https://example.com/logo.png",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -360,16 +305,11 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "http://example.com/logo.png", // HTTP, not HTTPS
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
+          LOGO_URL: "http://example.com/logo.png",
         },
       });
 
@@ -385,16 +325,11 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
           LOGO_URL: "javascript:alert(1)",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -408,16 +343,11 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
           LOGO_URL: "data:text/html,<script>alert(1)</script>",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -431,16 +361,10 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "<script>alert(1)</script>@example.com",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
 
@@ -456,16 +380,10 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
     });
@@ -503,16 +421,10 @@ describe("Worker Integration Tests", () => {
         script: workerScript,
         fetchMock,
         bindings: {
-          MAINTENANCE_ENABLED: "true",
+          ...defaultBindings,
           MAINTENANCE_TITLE: "Maintenance",
           MAINTENANCE_MESSAGE: "Under maintenance",
           CONTACT_EMAIL: "",
-          CUSTOM_CSS: "",
-          LOGO_URL: "",
-          MAINTENANCE_WINDOW_START: "",
-          MAINTENANCE_WINDOW_END: "",
-          ALLOWED_IPS: "[]",
-          ALLOWED_REGIONS: "[]",
         },
       });
     });
