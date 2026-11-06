@@ -4,6 +4,8 @@ updates:
   # GitHub Actions
   # =============================================
   - package-ecosystem: "github-actions"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
@@ -28,6 +30,8 @@ updates:
   # points at ./modules/backend-setup, which does not exist, so the directory cannot be parsed.
   # =============================================
   - package-ecosystem: "terraform"
+    cooldown:
+      default-days: 7
     directories:
       - "/"
       - "/modules/notifications"
@@ -51,6 +55,8 @@ updates:
   # npm (tests/package.json; no lockfile is tracked)
   # =============================================
   - package-ecosystem: "npm"
+    cooldown:
+      default-days: 7
     directory: "/tests"
     schedule:
       interval: "weekly"
@@ -70,6 +76,8 @@ updates:
   # Go (terratest suite; tests/integration/go.mod has no requirements)
   # =============================================
   - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 7
     directory: "/tests/e2e"
     schedule:
       interval: "weekly"
@@ -89,6 +97,8 @@ updates:
   # pre-commit
   # =============================================
   - package-ecosystem: "pre-commit"
+    cooldown:
+      default-days: 7
     directory: "/"
     schedule:
       interval: "weekly"
