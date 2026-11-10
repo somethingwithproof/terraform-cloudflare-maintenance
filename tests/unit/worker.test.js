@@ -23,6 +23,7 @@ const defaultBindings = {
   LOGO_URL: "",
   MAINTENANCE_WINDOW_START: "",
   MAINTENANCE_WINDOW_END: "",
+  RETRY_AFTER: "3600",
   ALLOWED_IPS: "[]",
   ALLOWED_REGIONS: "[]",
 };
@@ -185,6 +186,41 @@ describe("Scheduled maintenance window", () => {
   });
 });
 
+describe("Retry-After", () => {
+  async function retryAfterAt(iso, bindings) {
+    vi.useFakeTimers({ now: new Date(iso), toFake: ["Date"] });
+    try {
+      const response = await loadWorker(bindings).handleRequest(request());
+      return response.headers.get("Retry-After");
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  const window = {
+    MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
+    MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
+  };
+
+  it("counts down to the end of the window", async () => {
+    expect(await retryAfterAt("2025-04-06T09:00:00Z", window)).toBe("3600");
+    expect(await retryAfterAt("2025-04-06T09:59:30.500Z", window)).toBe("30");
+    expect(await retryAfterAt("2025-04-06T09:59:59.999Z", window)).toBe("1");
+  });
+
+  it("uses RETRY_AFTER without a window", async () => {
+    const at = "2025-04-06T09:00:00Z";
+    expect(await retryAfterAt(at, { RETRY_AFTER: "120" })).toBe("120");
+  });
+
+  it("falls back to an hour for a missing or invalid RETRY_AFTER", async () => {
+    const at = "2025-04-06T09:00:00Z";
+    for (const value of [undefined, "", "0", "-5", "soon"]) {
+      expect(await retryAfterAt(at, { RETRY_AFTER: value })).toBe("3600");
+    }
+  });
+});
+
 describe("getMaintenanceWindowMessage", () => {
   const message = (start, end) =>
     loadWorker({
@@ -340,12 +376,14 @@ describe("Logo URL", () => {
     }
   });
 
-  it("strips markup characters from the URL", async () => {
+  it("escapes the URL for its attribute instead of mangling it", async () => {
     const html = await maintenancePage({
-      LOGO_URL: 'https://example.com/logo"onerror="x<script>.png',
+      LOGO_URL: 'https://example.com/logo.png?a=1&b="x"<script>',
     });
+    expect(html).toContain(
+      '<img src="https://example.com/logo.png?a=1&amp;b=&quot;x&quot;&lt;script&gt;"',
+    );
     expect(html).not.toContain("<script>");
-    expect(html).not.toContain('"onerror');
   });
 });
 
@@ -387,12 +425,33 @@ describe("Maintenance page", () => {
     expect(html).not.toContain("mailto:");
   });
 
-  it("includes custom CSS but cannot close the style element", async () => {
+  it("includes custom CSS", async () => {
     const html = await maintenancePage({
-      CUSTOM_CSS: "body { background: blue; }</style><script>x()</script>",
+      CUSTOM_CSS: "body { background: blue; } a > b { color: red; }",
     });
-    expect(html).toContain("body { background: blue; }");
-    expect(html.match(/<\/style>/g)).toHaveLength(1);
+    expect(html).toContain("body { background: blue; } a > b { color: red; }");
+  });
+
+  // Every way out of <style> needs a "<", and none survives escapeCss.
+  for (const [name, css] of [
+    ["a plain close tag", "</style><script>x()</script>"],
+    ["a close tag with a space", "</style ><script>x()</script>"],
+    ["a close tag with a newline", "</style\n><script>x()</script>"],
+    ["an uppercase close tag", "</STYLE><script>x()</script>"],
+    ["a close tag rebuilt by removing a nested one", "</sty</style>le><script>x()</script>"],
+    ["an HTML comment opener", "<!--</style><script>x()</script>-->"],
+  ]) {
+    it(`keeps custom CSS inside <style> against ${name}`, async () => {
+      const html = await maintenancePage({ CUSTOM_CSS: css });
+      expect(html.match(/<\/style/gi)).toHaveLength(1);
+      expect(html).not.toMatch(/<script/i);
+      expect(html).not.toContain("<!--");
+    });
+  }
+
+  it("writes < in custom CSS as a CSS escape", async () => {
+    const html = await maintenancePage({ CUSTOM_CSS: 'a::after { content: "<"; }' });
+    expect(html).toContain('a::after { content: "\\3C "; }');
   });
 
   it("keeps Unicode content", async () => {
@@ -412,9 +471,15 @@ describe("Maintenance page", () => {
     );
     expect(response.headers.get("Cache-Control")).toContain("no-store");
     expect(response.headers.get("Retry-After")).toBe("3600");
-    expect(response.headers.get("Content-Security-Policy")).toContain(
+    const csp = response.headers.get("Content-Security-Policy");
+    for (const directive of [
       "default-src 'none'",
-    );
+      "form-action 'none'",
+      "base-uri 'none'",
+      "frame-ancestors 'none'",
+    ]) {
+      expect(csp).toContain(directive);
+    }
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
   });
 

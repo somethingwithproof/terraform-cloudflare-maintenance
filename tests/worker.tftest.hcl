@@ -21,6 +21,7 @@ run "bindings_carry_page_settings" {
     logo_url            = "https://example.com/logo.png"
     allowed_ips         = ["192.0.2.1", "198.51.100.0/24"]
     allowed_regions     = ["US", "CA"]
+    retry_after_seconds = 600
   }
 
   assert {
@@ -35,6 +36,7 @@ run "bindings_carry_page_settings" {
       LOGO_URL                 = "https://example.com/logo.png"
       MAINTENANCE_WINDOW_START = ""
       MAINTENANCE_WINDOW_END   = ""
+      RETRY_AFTER              = "600"
       ALLOWED_IPS              = jsonencode(["192.0.2.1", "198.51.100.0/24"])
       ALLOWED_REGIONS          = jsonencode(["US", "CA"])
     }
@@ -124,4 +126,24 @@ run "reject_lowercase_region" {
   }
 
   expect_failures = [var.allowed_regions]
+}
+
+run "reject_fractional_retry_after" {
+  command = plan
+
+  variables {
+    retry_after_seconds = 1.5
+  }
+
+  expect_failures = [var.retry_after_seconds]
+}
+
+run "reject_zero_retry_after" {
+  command = plan
+
+  variables {
+    retry_after_seconds = 0
+  }
+
+  expect_failures = [var.retry_after_seconds]
 }

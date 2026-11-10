@@ -65,7 +65,19 @@ All notable changes to this module are documented here. The format follows
   any spelling and treats IPv4-mapped IPv6 as IPv4. Entries are validated at
   plan time.
 
+### Security
+
+- Custom CSS is now escaped so that it cannot end the page's `<style>`
+  element in any spelling, and the page's Content Security Policy adds
+  `form-action 'none'`, `base-uri 'none'` and `frame-ancestors 'none'`.
+- The logo URL is HTML-escaped for its attribute instead of having
+  characters such as `&` removed, which broke URLs with query strings.
+
 ### Fixed
+
+- `Retry-After` counts down to the end of the window while one is open
+  instead of always saying an hour. Outside a window it is the new
+  `retry_after_seconds` input (default 3600).
 
 - The rate limiting rule uses `expression = "true"` instead of a `matches`
   regex, which needs a Business or Enterprise plan.

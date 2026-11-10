@@ -250,6 +250,7 @@ graph TD
 | maintenance_window | Window in RFC3339; deploys the route and serves the page only from `start_time` (inclusive) to `end_time` (exclusive) | `object({start_time=string, end_time=string})` | `null` | no |
 | custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
 | logo_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
+| retry_after_seconds | `Retry-After` outside a window; inside one it is the time left | `number` | `3600` | no |
 
 For a complete list of variables, see [variables.tf](variables.tf).
 
