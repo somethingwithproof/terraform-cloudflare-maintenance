@@ -47,9 +47,17 @@ variable "contact_email" {
 }
 
 variable "allowed_ips" {
-  description = "List of IP addresses that can bypass the maintenance page"
+  description = "IPv4 or IPv6 addresses and CIDR ranges whose clients bypass the maintenance page. The Worker matches them against CF-Connecting-IP."
   type        = list(string)
   default     = []
+
+  validation {
+    condition = alltrue([
+      for ip in var.allowed_ips :
+      can(cidrhost(strcontains(ip, "/") ? ip : "${ip}/${strcontains(ip, ":") ? 128 : 32}", 0))
+    ])
+    error_message = "Each allowed_ips entry must be an IPv4 or IPv6 address or CIDR range (e.g., 192.0.2.10, 198.51.100.0/24, 2001:db8::/32)."
+  }
 }
 
 variable "environment" {

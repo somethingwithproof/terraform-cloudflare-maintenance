@@ -38,7 +38,7 @@ This Terraform module provides a robust, enterprise-ready maintenance mode solut
 ## Features
 
 - 🛡️ **Customizable Maintenance Page**: Fully customizable HTML/CSS with support for logos and branding
-- 🔒 **IP Allowlisting**: Allow specific IPs to bypass maintenance mode (e.g., for testing or monitoring)
+- 🔒 **IP Allowlisting**: Allow IPv4/IPv6 addresses or CIDR ranges to bypass maintenance mode (e.g., for testing or monitoring). The Worker matches the `CF-Connecting-IP` header set by Cloudflare and never trusts `X-Forwarded-For`
 - ⏱️ **Scheduled Maintenance Windows**: Set specific time windows for maintenance mode to be active with RFC3339 timestamps
 - 📅 **Cron-based Scheduling**: Configure recurring maintenance windows with cron expressions
 - 📊 **Analytics Integration**: Built-in logging and monitoring with Cloudflare Analytics Engine
@@ -268,7 +268,7 @@ graph TD
 | maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
 | maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
 | contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
-| allowed_ips | List of IP addresses that can bypass the maintenance page | `list(string)` | `[]` | no |
+| allowed_ips | IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page | `list(string)` | `[]` | no |
 | allowed_regions | List of ISO 3166-1 alpha-2 country codes that can bypass maintenance | `list(string)` | `[]` | no |
 | maintenance_window | Scheduled maintenance window in RFC3339 format | `object({start_time=string, end_time=string})` | `null` | no |
 | schedules | List of cron-based scheduled maintenance windows | `list(object)` | `[]` | no |
