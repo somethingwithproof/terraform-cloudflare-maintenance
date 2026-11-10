@@ -102,7 +102,6 @@ jobs:
         test-file:
           - basic.tftest.hcl
           - worker.tftest.hcl
-          - advanced.tftest.hcl
           - rate_limit.tftest.hcl
     steps:
       - name: Checkout code

@@ -1,317 +1,133 @@
-# Rate Limiting Tests for Cloudflare Maintenance Module
+# Optional zone rate limiting rule.
 
-# Mock the Cloudflare provider so tests never call the real Cloudflare API.
 mock_provider "cloudflare" {}
 
 variables {
-  cloudflare_api_token = "test-api-token"
+  cloudflare_api_token  = "test-api-token"
+  cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+  cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
+  worker_route          = "example.com/*"
 }
 
-# Test case 1: Rate limiting enabled with default settings
-run "verify_rate_limit_enabled_default" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 100
-      period              = 60
-      action              = "block"
-      mitigation_timeout  = 600
-    }
-  }
-
-
-  command = apply
+run "disabled_by_default" {
+  command = plan
 
   assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should be enabled"
+    condition     = length(cloudflare_ruleset.rate_limit) == 0
+    error_message = "No rate limiting ruleset should be planned by default"
   }
 
   assert {
-    condition     = output.rate_limit_ruleset_id != null
-    error_message = "Rate limit ruleset should be created"
+    condition     = output.rate_limit_enabled == false && output.rate_limit_ruleset_id == null
+    error_message = "Outputs should report rate limiting as disabled"
   }
 }
 
-# Test case 2: Rate limiting with challenge action
-run "verify_rate_limit_challenge_action" {
+run "enabled_plans_one_ratelimit_rule" {
+  command = plan
+
   variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
     rate_limit = {
       enabled             = true
       requests_per_period = 50
       period              = 30
-      action              = "challenge"
+      action              = "managed_challenge"
       mitigation_timeout  = 300
     }
   }
 
+  assert {
+    condition     = length(cloudflare_ruleset.rate_limit) == 1
+    error_message = "One rate limiting ruleset should be planned"
+  }
 
-  command = apply
+  assert {
+    condition = (
+      cloudflare_ruleset.rate_limit[0].kind == "zone" &&
+      cloudflare_ruleset.rate_limit[0].phase == "http_ratelimit" &&
+      cloudflare_ruleset.rate_limit[0].zone_id == var.cloudflare_zone_id
+    )
+    error_message = "Ruleset should be the zone's http_ratelimit entry point"
+  }
+
+  assert {
+    condition     = length(cloudflare_ruleset.rate_limit[0].rules) == 1
+    error_message = "Ruleset should hold exactly one rule"
+  }
+
+  assert {
+    condition = (
+      cloudflare_ruleset.rate_limit[0].rules[0].action == "managed_challenge" &&
+      cloudflare_ruleset.rate_limit[0].rules[0].expression == "true" &&
+      cloudflare_ruleset.rate_limit[0].rules[0].enabled
+    )
+    error_message = "Rule should apply the configured action to every request"
+  }
+
+  assert {
+    condition = (
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.period == 30 &&
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.requests_per_period == 50 &&
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.mitigation_timeout == 300 &&
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.requests_to_origin == false &&
+      toset(cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.characteristics) == toset(["cf.colo.id", "ip.src"])
+    )
+    error_message = "Rule should carry the configured rate limit"
+  }
 
   assert {
     condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should be enabled with challenge action"
-  }
-
-  assert {
-    condition     = output.rate_limit_ruleset_id != null
-    error_message = "Rate limit ruleset should be created for challenge action"
+    error_message = "rate_limit_enabled output should be true"
   }
 }
 
-# Test case 3: Rate limiting with JS challenge action
-run "verify_rate_limit_js_challenge_action" {
+run "boundary_values_are_accepted" {
+  command = plan
+
   variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
     rate_limit = {
-      enabled             = true
-      requests_per_period = 200
-      period              = 120
-      action              = "js_challenge"
-      mitigation_timeout  = 900
+      enabled            = true
+      period             = 86400
+      mitigation_timeout = 60
     }
   }
 
-
-  command = apply
-
   assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should be enabled with JS challenge action"
+    condition = (
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.period == 86400 &&
+      cloudflare_ruleset.rate_limit[0].rules[0].ratelimit.mitigation_timeout == 60 &&
+      cloudflare_ruleset.rate_limit[0].rules[0].action == "block"
+    )
+    error_message = "Boundary values and the default action should be planned"
   }
 }
 
-# Test case 4: Rate limiting with managed challenge action
-run "verify_rate_limit_managed_challenge_action" {
+run "reject_period_below_minimum" {
+  command = plan
+
   variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 100
-      period              = 60
-      action              = "managed_challenge"
-      mitigation_timeout  = 600
-    }
+    rate_limit = { enabled = true, period = 9 }
   }
 
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should be enabled with managed challenge action"
-  }
+  expect_failures = [var.rate_limit]
 }
 
-# Test case 5: Rate limiting with log action (audit mode)
-run "verify_rate_limit_log_action" {
+run "reject_unknown_action" {
+  command = plan
+
   variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 100
-      period              = 60
-      action              = "log"
-      mitigation_timeout  = 600
-    }
+    rate_limit = { enabled = true, action = "drop" }
   }
 
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should be enabled with log action"
-  }
+  expect_failures = [var.rate_limit]
 }
 
-# Test case 6: Rate limiting disabled
-run "verify_rate_limit_disabled" {
+run "reject_mitigation_timeout_above_maximum" {
+  command = plan
+
   variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled = false
-    }
+    rate_limit = { enabled = true, mitigation_timeout = 86401 }
   }
 
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == false
-    error_message = "Rate limiting should be disabled"
-  }
-
-  assert {
-    condition     = output.rate_limit_ruleset_id == null
-    error_message = "Rate limit ruleset should not be created when disabled"
-  }
-}
-
-# Test case 7: Rate limiting with high request threshold
-run "verify_rate_limit_high_threshold" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 1000
-      period              = 60
-      action              = "block"
-      mitigation_timeout  = 600
-    }
-  }
-
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should support high request thresholds"
-  }
-}
-
-# Test case 8: Rate limiting with long period
-run "verify_rate_limit_long_period" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 500
-      period              = 3600 # 1 hour
-      action              = "block"
-      mitigation_timeout  = 7200 # 2 hours
-    }
-  }
-
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should support long periods"
-  }
-}
-
-# Test case 9: Combined rate limiting with maintenance features
-run "verify_rate_limit_with_maintenance_features" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "production"
-    worker_route          = "example.com/*"
-    allowed_ips           = ["192.168.1.1", "10.0.0.1"]
-    allowed_regions       = ["US", "CA"]
-    maintenance_window = {
-      start_time = "2025-04-06T08:00:00Z"
-      end_time   = "2025-04-06T10:00:00Z"
-    }
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 100
-      period              = 60
-      action              = "block"
-      mitigation_timeout  = 600
-    }
-  }
-
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should work with other maintenance features"
-  }
-
-
-  assert {
-    condition     = output.maintenance_window.start_time == "2025-04-06T08:00:00Z"
-    error_message = "Maintenance window should be configured"
-  }
-}
-
-# Test case 10: Rate limiting minimum period (boundary test)
-run "verify_rate_limit_minimum_period" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 10
-      period              = 10 # Minimum allowed period
-      action              = "block"
-      mitigation_timeout  = 60 # Minimum allowed timeout
-    }
-  }
-
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should work with minimum period"
-  }
-}
-
-# Test case 11: Rate limiting maximum period (boundary test)
-run "verify_rate_limit_maximum_period" {
-  variables {
-    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
-    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
-    enabled               = true
-    environment           = "test"
-    worker_route          = "example.com/*"
-    rate_limit = {
-      enabled             = true
-      requests_per_period = 10000
-      period              = 86400 # Maximum allowed period (24 hours)
-      action              = "block"
-      mitigation_timeout  = 86400 # Maximum allowed timeout
-    }
-  }
-
-
-  command = apply
-
-  assert {
-    condition     = output.rate_limit_enabled == true
-    error_message = "Rate limiting should work with maximum period"
-  }
+  expect_failures = [var.rate_limit]
 }
