@@ -47,7 +47,7 @@ jobs:
           cache-dependency-path: tests/package-lock.json
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci --ignore-scripts
 
       - name: Run unit tests
         run: npm run test:unit
@@ -80,7 +80,7 @@ jobs:
           cache-dependency-path: tests/package-lock.json
 
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci --ignore-scripts
 
       - name: Run integration tests
         run: npm run test:integration
@@ -221,10 +221,12 @@ jobs:
           tflint -f compact
 
       - name: Install test dependencies
-        run: cd tests && npm ci || npm install
+        working-directory: tests
+        run: npm ci --ignore-scripts
 
-      - name: Run ESLint on tests
-        run: cd tests && npm run lint || true
+      - name: Run ESLint on worker.js and tests
+        working-directory: tests
+        run: npm run lint
 
   # Test summary job
   test-summary:
