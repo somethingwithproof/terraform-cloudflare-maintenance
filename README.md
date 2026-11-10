@@ -302,16 +302,27 @@ For a complete list of outputs, see [outputs.tf](outputs.tf).
 The module uses the Cloudflare provider v5 schema. Provider v5 renamed the
 status-page DNS record resource from `cloudflare_record` to
 `cloudflare_dns_record`, so state written by a v4-era release of this module
-must be re-associated before the first v5 plan. Replace `module.maintenance`
-with your module address and keep the zone and record IDs from your v4 state:
+must be re-associated before the first v5 plan. Follow Cloudflare's
+[version 5 migration guide](https://github.com/cloudflare/terraform-provider-cloudflare/blob/main/docs/guides/version-5-migration.md)
+for the prerequisites:
+
+1. Back up the state first: `tofu state pull > terraform.tfstate.backup`.
+2. If the state was written by a v4 provider older than v4.52.5, apply once
+   with v4.52.5 before moving to v5.
+3. Use provider v5.19 or later for the migration. Earlier v5 releases lack the
+   automatic v4 state upgraders that `cloudflare_workers_script`,
+   `cloudflare_workers_route` and `cloudflare_ruleset` rely on; those resources
+   keep their types and are upgraded during the next plan.
+
+Then re-associate the DNS record. Replace `module.maintenance` with your module
+address and keep the zone and record IDs from your v4 state:
 
 ```bash
 tofu state rm 'module.maintenance.cloudflare_record.maintenance_status[0]'
 tofu import 'module.maintenance.cloudflare_dns_record.maintenance_status[0]' '<zone_id>/<dns_record_id>'
 ```
 
-`cloudflare_workers_script`, `cloudflare_workers_route` and `cloudflare_ruleset`
-keep their resource types; the provider upgrades their state during the next plan.
+Review the next `tofu plan` before applying it.
 
 ## Cron Expression Reference
 
