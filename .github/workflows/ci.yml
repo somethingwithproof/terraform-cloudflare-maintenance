@@ -168,3 +168,7 @@ jobs:
         run: |
           tofu init -backend=false
           tofu test
+
+      # Real applies with a stub curl, so nothing is sent.
+      - name: Check the PagerDuty incident handoff
+        run: modules/notifications/tests/apply-handoff.sh

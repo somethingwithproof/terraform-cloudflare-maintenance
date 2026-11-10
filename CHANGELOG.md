@@ -22,6 +22,14 @@ All notable changes to this module are documented here. The format follows
   account. Names must be 1-63 lowercase letters, digits or dashes; an empty
   string is rejected.
 
+- Notifications module: `SCHEDULED` no longer triggers a PagerDuty incident
+  (it never resolved on its own, because nothing applies when a window ends).
+  Slack and webhook targets still get the message, and `event_action` is
+  `none` for it. When `schedule_name` or `environment` changes while an
+  incident is open, or the status drops back to `SCHEDULED`, the old incident
+  is now resolved under its old dedup key. Incidents opened by an earlier
+  release for `SCHEDULED` are not tracked; resolve them by hand.
+
 - The module no longer configures the Cloudflare provider and the
   `cloudflare_api_token` variable is removed. Configure the provider in the
   calling root module (for example from `CLOUDFLARE_API_TOKEN`) and drop the
@@ -80,6 +88,10 @@ All notable changes to this module are documented here. The format follows
   plan time.
 
 ### Fixed
+
+- The `maintenance_status` and `maintenance_window` outputs depend on the
+  Worker script and route, so notifications that consume them are sent only
+  after the Cloudflare changes in the same apply succeed.
 
 - The rate limiting rule uses `expression = "true"` instead of a `matches`
   regex, which needs a Business or Enterprise plan.

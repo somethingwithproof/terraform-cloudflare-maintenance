@@ -20,13 +20,19 @@ const script = fileURLToPath(
   new URL("../../modules/notifications/notify.sh", import.meta.url),
 );
 
-// Records curl's stdin config, arguments and request body, then succeeds.
+// Records curl's stdin config, arguments and request body, then succeeds,
+// or fails when $STUB_DIR/fail exists. Bodies of every call are appended to
+// $STUB_DIR/bodies, one JSON document per line.
 const stubCurl = `#!/bin/sh
+[ -e "$STUB_DIR/fail" ] && exit 22
 cat > "$STUB_DIR/config"
 printf '%s\\n' "$@" > "$STUB_DIR/args"
 prev=
 for arg in "$@"; do
-  if [ "$prev" = "--data-binary" ]; then cp "\${arg#@}" "$STUB_DIR/body"; fi
+  if [ "$prev" = "--data-binary" ]; then
+    cp "\${arg#@}" "$STUB_DIR/body"
+    jq -c . "\${arg#@}" >> "$STUB_DIR/bodies"
+  fi
   prev=$arg
 done
 `;
@@ -48,7 +54,7 @@ function notify(url, overrides = {}) {
       PATH: `${dir}:${process.env.PATH}`,
       STUB_DIR: dir,
       NOTIFY_URL: url,
-      NOTIFY_STATUS: "SCHEDULED",
+      NOTIFY_STATUS: "ENABLED",
       NOTIFY_ACTION: "trigger",
       NOTIFY_SCHEDULE: "weekly",
       NOTIFY_ENVIRONMENT: "production",
@@ -71,6 +77,10 @@ function notify(url, overrides = {}) {
     config: read("config"),
     args: read("args").split("\n"),
     body: read("body") ? JSON.parse(read("body")) : null,
+    bodies: read("bodies")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line)),
   };
 }
 
@@ -81,7 +91,7 @@ describe("notify.sh", () => {
     expect(sent.config).toBe(
       'url = "https://hooks.slack.com/services/T000/B000/XXXX"\n',
     );
-    expect(sent.body.text).toBe("Maintenance SCHEDULED");
+    expect(sent.body.text).toBe("Maintenance ENABLED");
     expect(JSON.stringify(sent.body.blocks)).toContain("weekly");
   });
 
@@ -93,7 +103,7 @@ describe("notify.sh", () => {
       routing_key: "routing-key-123",
       event_action: "trigger",
       dedup_key: "terraform-cloudflare-maintenance/production/weekly",
-      payload: { severity: "warning", custom_details: { status: "SCHEDULED" } },
+      payload: { severity: "warning", custom_details: { status: "ENABLED" } },
     });
   });
 
@@ -115,7 +125,7 @@ describe("notify.sh", () => {
     expect(sent.status).toBe(0);
     expect(sent.config).toBe('url = "https://hooks.example.com/x"\n');
     expect(sent.body).toEqual({
-      status: "SCHEDULED",
+      status: "ENABLED",
       schedule_name: "weekly",
       environment: "production",
       maintenance_window: {
@@ -141,10 +151,120 @@ describe("notify.sh", () => {
     expect(sent.body.schedule_name).toBe(`"}' ; $(touch pwned) \``);
   });
 
+  it("rejects unknown actions without calling curl", () => {
+    const sent = notify("pagerduty://routing-key-123", { NOTIFY_ACTION: "page" });
+    expect(sent.status).toBe(1);
+    expect(sent.config).toBe("");
+  });
+
   it("rejects unsupported schemes without calling curl", () => {
     const sent = notify("webhook://http://hooks.example.com/x");
     expect(sent.status).toBe(1);
     expect(sent.stderr).toContain("unsupported notification URL scheme");
     expect(sent.config).toBe("");
+  });
+
+  describe("scheduled windows", () => {
+    const scheduled = { NOTIFY_STATUS: "SCHEDULED", NOTIFY_ACTION: "none" };
+
+    it("send PagerDuty nothing", () => {
+      const sent = notify("pagerduty://routing-key-123", scheduled);
+      expect(sent.status).toBe(0);
+      expect(sent.bodies).toEqual([]);
+    });
+
+    it("still inform Slack and webhooks", () => {
+      expect(notify("slack://T000/B000/XXXX", scheduled).body.text).toBe(
+        "Maintenance SCHEDULED",
+      );
+      expect(
+        notify("webhook://https://hooks.example.com/x", scheduled).body.status,
+      ).toBe("SCHEDULED");
+    });
+  });
+
+  describe("incident handoff across a replacement", () => {
+    const stateFile = () => join(dir, "state", "target.json");
+    const record = (key, action) =>
+      notify("pagerduty://ignored", {
+        NOTIFY_MODE: "record",
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: key,
+        NOTIFY_ACTION: action,
+        NOTIFY_URL: "",
+      });
+    const oldKey = "terraform-cloudflare-maintenance/staging/weekly";
+    const newKey = "terraform-cloudflare-maintenance/production/weekly";
+
+    it("records only the key and action, without calling curl", () => {
+      const recorded = record(oldKey, "trigger");
+      expect(recorded.status).toBe(0);
+      expect(recorded.bodies).toEqual([]);
+      expect(JSON.parse(readFileSync(stateFile(), "utf8"))).toEqual({
+        dedup_key: oldKey,
+        action: "trigger",
+      });
+    });
+
+    it("resolves the old incident when the key changes", () => {
+      record(oldKey, "trigger");
+      const sent = notify("pagerduty://routing-key-123", {
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: newKey,
+      });
+      expect(sent.status).toBe(0);
+      expect(sent.bodies.map((b) => [b.event_action, b.dedup_key])).toEqual([
+        ["resolve", oldKey],
+        ["trigger", newKey],
+      ]);
+      expect(() => readFileSync(stateFile())).toThrow();
+    });
+
+    it("resolves the incident when maintenance becomes only scheduled", () => {
+      record(newKey, "trigger");
+      const sent = notify("pagerduty://routing-key-123", {
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: newKey,
+        NOTIFY_STATUS: "SCHEDULED",
+        NOTIFY_ACTION: "none",
+      });
+      expect(sent.bodies.map((b) => [b.event_action, b.dedup_key])).toEqual([
+        ["resolve", newKey],
+      ]);
+    });
+
+    it("keeps one incident when the key is unchanged", () => {
+      record(newKey, "trigger");
+      const sent = notify("pagerduty://routing-key-123", {
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: newKey,
+        NOTIFY_STATUS: "ACTIVE",
+      });
+      expect(sent.bodies.map((b) => b.event_action)).toEqual(["trigger"]);
+    });
+
+    it("does not resolve an incident that was never triggered", () => {
+      record(oldKey, "resolve");
+      const sent = notify("pagerduty://routing-key-123", {
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: newKey,
+      });
+      expect(sent.bodies.map((b) => [b.event_action, b.dedup_key])).toEqual([
+        ["trigger", newKey],
+      ]);
+    });
+
+    it("keeps the record when delivery fails, so a retry still resolves", () => {
+      record(oldKey, "trigger");
+      writeFileSync(join(dir, "fail"), "");
+      const sent = notify("pagerduty://routing-key-123", {
+        NOTIFY_STATE_FILE: stateFile(),
+        NOTIFY_DEDUP_KEY: newKey,
+      });
+      expect(sent.status).not.toBe(0);
+      expect(JSON.parse(readFileSync(stateFile(), "utf8")).dedup_key).toBe(
+        oldKey,
+      );
+    });
   });
 });
