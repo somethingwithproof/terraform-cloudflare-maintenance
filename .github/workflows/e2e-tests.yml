@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # checkov:skip=CKV_GHA_7: the input only opts in to the real-zone tests; nothing is built or released
   workflow_dispatch:
     inputs:
       run_e2e:
@@ -211,11 +212,6 @@ jobs:
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
-
-      - name: Run TFSec
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
-        with:
-          soft_fail: true
 
   # Linting
   lint:
