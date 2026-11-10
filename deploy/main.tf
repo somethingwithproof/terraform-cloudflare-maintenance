@@ -27,10 +27,13 @@ module "maintenance" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id
   environment           = var.environment
-  worker_route          = var.worker_route
-  enabled               = var.enabled
-  maintenance_window    = var.maintenance_window
-  allowed_ips           = var.allowed_ips
-  allowed_regions       = var.allowed_regions
-  contact_email         = var.contact_email
+  # One Worker per environment, so the dev, staging and production workspaces
+  # never overwrite or delete each other's Worker in a shared account.
+  script_name        = "maintenance-page-${var.environment}"
+  worker_route       = var.worker_route
+  enabled            = var.enabled
+  maintenance_window = var.maintenance_window
+  allowed_ips        = var.allowed_ips
+  allowed_regions    = var.allowed_regions
+  contact_email      = var.contact_email
 }

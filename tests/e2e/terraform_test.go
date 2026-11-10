@@ -1,542 +1,301 @@
-// Package test contains end-to-end tests for the Terraform Cloudflare Maintenance module
+// Package test contains end-to-end tests for the Terraform Cloudflare Maintenance module.
+//
+// The tests apply the module to a real Cloudflare account and zone, so they
+// only run when the CF_E2E_* settings below are present; otherwise every test
+// skips. Each test works on its own copy of the module (separate .terraform
+// directory and state) and deploys a uniquely named Worker on a unique
+// hostname, so the tests can run in parallel without sharing anything.
 package test
 
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gruntwork-io/terratest/modules/files"
 	"github.com/gruntwork-io/terratest/modules/random"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestMaintenanceModuleBasic tests basic module functionality
+// Settings read from the environment. CLOUDFLARE_API_TOKEN is read by the
+// provider itself.
+const (
+	envAPIToken        = "CLOUDFLARE_API_TOKEN"
+	envAccountID       = "CF_E2E_ACCOUNT_ID"
+	envZoneID          = "CF_E2E_ZONE_ID"
+	envZoneName        = "CF_E2E_ZONE_NAME"
+	envRateLimitZoneID = "CF_E2E_RATE_LIMIT_ZONE_ID"
+	tofuBinary         = "tofu"
+	moduleRoot         = "../.."
+)
+
+// e2eConfig holds the account and the dedicated test zone.
+type e2eConfig struct {
+	accountID string
+	zoneID    string
+	zoneName  string
+}
+
+// requireConfig skips the test unless the dedicated test zone is configured.
+func requireConfig(t *testing.T) e2eConfig {
+	t.Helper()
+	for _, name := range []string{envAPIToken, envAccountID, envZoneID, envZoneName} {
+		if os.Getenv(name) == "" {
+			t.Skipf("skipping: %s is not set", name)
+		}
+	}
+	return e2eConfig{
+		accountID: os.Getenv(envAccountID),
+		zoneID:    os.Getenv(envZoneID),
+		zoneName:  os.Getenv(envZoneName),
+	}
+}
+
+// moduleOptions copies the module to a temporary directory and returns
+// options for it with a unique Worker name and route. vars override the
+// defaults.
+func moduleOptions(t *testing.T, cfg e2eConfig, vars map[string]interface{}) *terraform.Options {
+	t.Helper()
+	id := strings.ToLower(random.UniqueId())
+	// The same copy test_structure.CopyTerraformFolderToTemp makes, without
+	// the AWS and GCP dependencies that package pulls in.
+	dir, err := files.CopyTerraformFolderToTemp(moduleRoot, "e2e-"+id)
+	require.NoError(t, err)
+
+	all := map[string]interface{}{
+		"cloudflare_account_id": cfg.accountID,
+		"cloudflare_zone_id":    cfg.zoneID,
+		"script_name":           "e2e-maintenance-" + id,
+		"worker_route":          fmt.Sprintf("e2e-%s.%s/*", id, cfg.zoneName),
+		"environment":           "e2e",
+	}
+	for k, v := range vars {
+		all[k] = v
+	}
+
+	return terraform.WithDefaultRetryableErrors(t, &terraform.Options{
+		TerraformDir:    dir,
+		TerraformBinary: tofuBinary,
+		Vars:            all,
+		NoColor:         true,
+	})
+}
+
+// deploy applies the options and registers a destroy that runs even when the
+// test fails or panics.
+func deploy(t *testing.T, opts *terraform.Options) {
+	t.Helper()
+	t.Cleanup(func() { terraform.Destroy(t, opts) })
+	terraform.InitAndApply(t, opts)
+}
+
 func TestMaintenanceModuleBasic(t *testing.T) {
 	t.Parallel()
-
-	// Skip if required environment variables are not set
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":             true,
+		"maintenance_title":   "E2E Test Maintenance",
+		"maintenance_message": "This is an automated E2E test",
+		"contact_email":       "test@example.com",
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "E2E Test Maintenance",
-			"maintenance_message":   "This is an automated E2E test",
-			"contact_email":         "test@example.com",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-		},
-		NoColor: true,
-	})
-
-	// Clean up resources after test
-	defer terraform.Destroy(t, terraformOptions)
-
-	// Deploy the module
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate outputs
-	workerScriptName := terraform.Output(t, terraformOptions, "worker_script_name")
-	assert.NotEmpty(t, workerScriptName, "Worker script name should not be empty")
-
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "ENABLED", maintenanceStatus, "Maintenance status should be ENABLED")
-
-	workerRoutePattern := terraform.Output(t, terraformOptions, "worker_route_pattern")
-	assert.NotEqual(t, "Maintenance mode disabled", workerRoutePattern, "Worker route should be configured")
-
-	environment := terraform.Output(t, terraformOptions, "environment")
-	assert.Equal(t, "test", environment, "Environment should match input")
+	assert.Equal(t, opts.Vars["script_name"], terraform.Output(t, opts, "worker_script_name"))
+	assert.Equal(t, "ENABLED", terraform.Output(t, opts, "maintenance_status"))
+	assert.Equal(t, opts.Vars["worker_route"], terraform.Output(t, opts, "worker_route_pattern"))
+	assert.Equal(t, "e2e", terraform.Output(t, opts, "environment"))
 }
 
-// TestMaintenanceModuleDisabled tests module with maintenance disabled
 func TestMaintenanceModuleDisabled(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":           false,
+		"maintenance_title": "Disabled Test",
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               false,
-			"maintenance_title":     "Disabled Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate disabled state
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "DISABLED", maintenanceStatus, "Maintenance status should be DISABLED")
-
-	workerRoutePattern := terraform.Output(t, terraformOptions, "worker_route_pattern")
-	assert.Equal(t, "Maintenance mode disabled", workerRoutePattern, "Worker route should indicate disabled")
-
+	assert.Equal(t, "DISABLED", terraform.Output(t, opts, "maintenance_status"))
+	assert.Equal(t, "Maintenance mode disabled", terraform.Output(t, opts, "worker_route_pattern"))
 }
 
-// TestMaintenanceModuleWithIPAllowlist tests IP allowlist functionality
 func TestMaintenanceModuleWithIPAllowlist(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":     true,
+		"allowed_ips": []string{"192.0.2.1", "198.51.100.0/24", "2001:db8::/32"},
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "IP Allowlist Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"allowed_ips":           []string{"192.168.1.1", "10.0.0.1", "8.8.8.8"},
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "ENABLED", maintenanceStatus, "Maintenance should be enabled with an IP allowlist")
+	assert.Equal(t, "ENABLED", terraform.Output(t, opts, "maintenance_status"))
 }
 
-// TestMaintenanceModuleWithRegionAllowlist tests region allowlist functionality
 func TestMaintenanceModuleWithRegionAllowlist(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":         true,
+		"allowed_regions": []string{"US", "CA", "GB"},
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Region Allowlist Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"allowed_regions":       []string{"US", "CA", "GB"},
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate outputs
-
-	allowedRegions := terraform.OutputList(t, terraformOptions, "allowed_regions")
-	assert.Len(t, allowedRegions, 3, "Should have 3 allowed regions")
-	assert.Contains(t, allowedRegions, "US", "Should include US")
-	assert.Contains(t, allowedRegions, "CA", "Should include CA")
-	assert.Contains(t, allowedRegions, "GB", "Should include GB")
+	assert.ElementsMatch(t, []string{"US", "CA", "GB"}, terraform.OutputList(t, opts, "allowed_regions"))
 }
 
-// TestMaintenanceModuleWithMaintenanceWindow tests scheduled maintenance window
 func TestMaintenanceModuleWithMaintenanceWindow(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	start := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
+	end := time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"maintenance_window": map[string]string{"start_time": start, "end_time": end},
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	// Set maintenance window
-	startTime := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
-	endTime := time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Scheduled Maintenance Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"maintenance_window": map[string]string{
-				"start_time": startTime,
-				"end_time":   endTime,
-			},
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "SCHEDULED", maintenanceStatus, "A window should report SCHEDULED")
-
-	// Validate maintenance window output
-	maintenanceWindow := terraform.OutputMap(t, terraformOptions, "maintenance_window")
-	assert.Equal(t, startTime, maintenanceWindow["start_time"], "Start time should match")
-	assert.Equal(t, endTime, maintenanceWindow["end_time"], "End time should match")
+	assert.Equal(t, "SCHEDULED", terraform.Output(t, opts, "maintenance_status"))
+	window := terraform.OutputMap(t, opts, "maintenance_window")
+	assert.Equal(t, start, window["start_time"])
+	assert.Equal(t, end, window["end_time"])
 }
 
-// TestMaintenanceModuleWithRateLimiting tests rate limiting functionality
+// TestMaintenanceModuleWithRateLimiting creates and then deletes the zone's
+// http_ratelimit entry-point ruleset, which would delete every rate limiting
+// rule on the zone. It therefore needs its own throwaway zone and never runs
+// against the shared test zone.
 func TestMaintenanceModuleWithRateLimiting(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
-	})
-
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Rate Limit Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"rate_limit": map[string]interface{}{
-				"enabled":             true,
-				"requests_per_period": 100,
-				"period":              60,
-				"action":              "block",
-				"mitigation_timeout":  600,
-			},
+	cfg := requireConfig(t)
+	rateLimitZone := os.Getenv(envRateLimitZoneID)
+	if rateLimitZone == "" {
+		t.Skipf("skipping: %s (a dedicated zone whose rate limiting rules may be deleted) is not set", envRateLimitZoneID)
+	}
+	// No route, so the test zone's hostname is not needed on that zone.
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"cloudflare_zone_id": rateLimitZone,
+		"enabled":            false,
+		"rate_limit": map[string]interface{}{
+			"enabled":             true,
+			"requests_per_period": 100,
+			"period":              60,
+			"action":              "block",
+			"mitigation_timeout":  600,
 		},
-		NoColor: true,
 	})
+	deploy(t, opts)
 
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate rate limiting outputs
-	rateLimitEnabled := terraform.Output(t, terraformOptions, "rate_limit_enabled")
-	assert.Equal(t, "true", rateLimitEnabled, "Rate limit should be enabled")
-
-	rateLimitRulesetID := terraform.Output(t, terraformOptions, "rate_limit_ruleset_id")
-	assert.NotEmpty(t, rateLimitRulesetID, "Rate limit ruleset ID should not be empty")
+	assert.Equal(t, "true", terraform.Output(t, opts, "rate_limit_enabled"))
+	assert.NotEmpty(t, terraform.Output(t, opts, "rate_limit_ruleset_id"))
 }
 
-// TestMaintenanceModuleWithCustomStyling tests custom CSS and logo
 func TestMaintenanceModuleWithCustomStyling(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":    true,
+		"custom_css": "body { background-color: #1a1a2e; color: white; }",
+		"logo_url":   "https://example.com/logo.png",
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Custom Style Test",
-			"maintenance_message":   "Testing custom styling",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"custom_css":            "body { background-color: #1a1a2e; color: white; }",
-			"logo_url":              "https://example.com/logo.png",
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate the module deployed successfully
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "ENABLED", maintenanceStatus, "Maintenance should be enabled with custom styling")
+	assert.Equal(t, "ENABLED", terraform.Output(t, opts, "maintenance_status"))
 }
 
-// TestMaintenanceModuleIdempotency tests that multiple applies produce the same result
+// TestMaintenanceModuleIdempotency checks that a second plan of the applied
+// configuration is empty.
 func TestMaintenanceModuleIdempotency(t *testing.T) {
 	t.Parallel()
+	cfg := requireConfig(t)
+	opts := moduleOptions(t, cfg, map[string]interface{}{"enabled": true})
+	deploy(t, opts)
 
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
-	})
-
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Idempotency Test",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	// First apply
-	terraform.InitAndApply(t, terraformOptions)
-	firstWorkerName := terraform.Output(t, terraformOptions, "worker_script_name")
-
-	// Second apply (should be idempotent)
-	terraform.Apply(t, terraformOptions)
-	secondWorkerName := terraform.Output(t, terraformOptions, "worker_script_name")
-
-	// Verify idempotency
-	assert.Equal(t, firstWorkerName, secondWorkerName, "Worker name should be the same after multiple applies")
+	exitCode := terraform.PlanExitCode(t, opts)
+	assert.Equal(t, 0, exitCode, "a plan right after apply should have no changes")
 }
 
-// TestMaintenanceModuleEnvironments tests different environment configurations
 func TestMaintenanceModuleEnvironments(t *testing.T) {
 	t.Parallel()
+	cfg := requireConfig(t)
 
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
-	})
-
-	environments := []string{"development", "staging", "production"}
-
-	for _, env := range environments {
-		env := env // capture range variable
+	for _, env := range []string{"development", "staging", "production"} {
 		t.Run(env, func(t *testing.T) {
 			t.Parallel()
-
-			uniqueID := random.UniqueId()
-			workerRoute := fmt.Sprintf("test-%s-%s.example.com/*", env, uniqueID)
-
-			terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-				TerraformDir: "../../",
-				Vars: map[string]interface{}{
-					"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-					"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-					"enabled":               true,
-					"maintenance_title":     fmt.Sprintf("%s Maintenance", env),
-					"worker_route":          workerRoute,
-					"environment":           env,
-				},
-				NoColor: true,
+			opts := moduleOptions(t, cfg, map[string]interface{}{
+				"enabled":     true,
+				"environment": env,
 			})
+			deploy(t, opts)
 
-			defer terraform.Destroy(t, terraformOptions)
-
-			terraform.InitAndApply(t, terraformOptions)
-
-			outputEnv := terraform.Output(t, terraformOptions, "environment")
-			assert.Equal(t, env, outputEnv, "Environment should match input")
+			assert.Equal(t, env, terraform.Output(t, opts, "environment"))
 		})
 	}
 }
 
-// TestMaintenanceModuleCombinedFeatures tests all features together
 func TestMaintenanceModuleCombinedFeatures(t *testing.T) {
 	t.Parallel()
-
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
+	cfg := requireConfig(t)
+	start := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
+	end := time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339)
+	opts := moduleOptions(t, cfg, map[string]interface{}{
+		"enabled":             true,
+		"maintenance_title":   "Full Feature Test",
+		"maintenance_message": "Testing all features",
+		"contact_email":       "test@example.com",
+		"allowed_ips":         []string{"192.0.2.1", "198.51.100.0/24"},
+		"allowed_regions":     []string{"US", "CA"},
+		"custom_css":          "body { background: #000; }",
+		"logo_url":            "https://example.com/logo.png",
+		"maintenance_window":  map[string]string{"start_time": start, "end_time": end},
 	})
+	deploy(t, opts)
 
-	uniqueID := random.UniqueId()
-	workerRoute := fmt.Sprintf("test-%s.example.com/*", uniqueID)
-	startTime := time.Now().Add(1 * time.Hour).UTC().Format(time.RFC3339)
-	endTime := time.Now().Add(3 * time.Hour).UTC().Format(time.RFC3339)
-
-	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
-		TerraformDir: "../../",
-		Vars: map[string]interface{}{
-			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":               true,
-			"maintenance_title":     "Full Feature Test",
-			"maintenance_message":   "Testing all features",
-			"contact_email":         "test@example.com",
-			"worker_route":          workerRoute,
-			"environment":           "test",
-			"allowed_ips":           []string{"192.168.1.1", "10.0.0.1"},
-			"allowed_regions":       []string{"US", "CA"},
-			"custom_css":            "body { background: #000; }",
-			"logo_url":              "https://example.com/logo.png",
-			"maintenance_window": map[string]string{
-				"start_time": startTime,
-				"end_time":   endTime,
-			},
-			"rate_limit": map[string]interface{}{
-				"enabled":             true,
-				"requests_per_period": 50,
-				"period":              30,
-				"action":              "block",
-				"mitigation_timeout":  300,
-			},
-		},
-		NoColor: true,
-	})
-
-	defer terraform.Destroy(t, terraformOptions)
-
-	terraform.InitAndApply(t, terraformOptions)
-
-	// Validate all outputs
-	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "SCHEDULED", maintenanceStatus)
-
-	allowedRegions := terraform.OutputList(t, terraformOptions, "allowed_regions")
-	assert.Len(t, allowedRegions, 2)
-
-	maintenanceWindow := terraform.OutputMap(t, terraformOptions, "maintenance_window")
-	assert.Equal(t, startTime, maintenanceWindow["start_time"])
-
-	rateLimitEnabled := terraform.Output(t, terraformOptions, "rate_limit_enabled")
-	assert.Equal(t, "true", rateLimitEnabled)
+	assert.Equal(t, "SCHEDULED", terraform.Output(t, opts, "maintenance_status"))
+	assert.Len(t, terraform.OutputList(t, opts, "allowed_regions"), 2)
+	assert.Equal(t, start, terraform.OutputMap(t, opts, "maintenance_window")["start_time"])
 }
 
-// Helper function to skip tests if environment variables are missing
-func skipIfMissingEnvVars(t *testing.T, envVars []string) {
-	for _, envVar := range envVars {
-		if os.Getenv(envVar) == "" {
-			t.Skipf("Skipping test: %s environment variable not set", envVar)
-		}
-	}
-}
-
-// TestMaintenanceModuleValidationErrors tests that invalid inputs produce errors
+// TestMaintenanceModuleValidationErrors plans invalid inputs; validation fails
+// before any resource is created.
 func TestMaintenanceModuleValidationErrors(t *testing.T) {
 	t.Parallel()
+	cfg := requireConfig(t)
 
-	skipIfMissingEnvVars(t, []string{
-		"CLOUDFLARE_API_TOKEN",
-		"CLOUDFLARE_ACCOUNT_ID",
-		"CLOUDFLARE_ZONE_ID",
-	})
-
-	testCases := []struct {
-		name        string
-		vars        map[string]interface{}
-		expectError bool
+	// Each case names a fragment of its own diagnostic, so an unrelated
+	// failure (credentials, network, provider) does not count as a pass.
+	cases := map[string]struct {
+		vars    map[string]interface{}
+		wantErr string
 	}{
-		{
-			name: "Invalid rate limit period (too low)",
-			vars: map[string]interface{}{
-				"rate_limit": map[string]interface{}{
-					"enabled": true,
-					"period":  5, // Below minimum of 10
-				},
-			},
-			expectError: true,
+		"rate limit period too low": {
+			vars:    map[string]interface{}{"rate_limit": map[string]interface{}{"enabled": true, "period": 5}},
+			wantErr: "period must be between 10",
 		},
-		{
-			name: "Invalid rate limit action",
-			vars: map[string]interface{}{
-				"rate_limit": map[string]interface{}{
-					"enabled": true,
-					"action":  "invalid_action",
-				},
-			},
-			expectError: true,
+		"unknown rate limit action": {
+			vars:    map[string]interface{}{"rate_limit": map[string]interface{}{"enabled": true, "action": "invalid_action"}},
+			wantErr: "action must be one of",
 		},
-		{
-			name: "Invalid region code",
-			vars: map[string]interface{}{
-				"allowed_regions": []string{"USA"}, // Should be "US"
-			},
-			expectError: true,
+		"three-letter region code": {
+			vars:    map[string]interface{}{"allowed_regions": []string{"USA"}},
+			wantErr: "ISO 3166-1 alpha-2",
+		},
+		"invalid script name": {
+			vars:    map[string]interface{}{"script_name": "Not_Valid"},
+			wantErr: "Worker script name",
 		},
 	}
 
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-
-			uniqueID := random.UniqueId()
-			baseVars := map[string]interface{}{
-				"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-				"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
-				"enabled":               true,
-				"worker_route":          fmt.Sprintf("test-%s.example.com/*", uniqueID),
-				"environment":           "test",
-			}
-
-			// Merge test-specific vars
-			for k, v := range tc.vars {
-				baseVars[k] = v
-			}
-
-			terraformOptions := &terraform.Options{
-				TerraformDir: "../../",
-				Vars:         baseVars,
-				NoColor:      true,
-			}
-
-			_, err := terraform.InitAndPlanE(t, terraformOptions)
-
-			if tc.expectError {
-				require.Error(t, err, "Expected validation error for: %s", tc.name)
-			} else {
-				require.NoError(t, err, "Did not expect error for: %s", tc.name)
-			}
+			opts := moduleOptions(t, cfg, tc.vars)
+			_, err := terraform.InitAndPlanE(t, opts)
+			require.Error(t, err)
+			// Diagnostics are wrapped across lines.
+			assert.Contains(t, strings.Join(strings.Fields(err.Error()), " "), tc.wantErr)
 		})
 	}
 }
