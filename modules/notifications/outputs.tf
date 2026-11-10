@@ -10,6 +10,11 @@ output "notification_types" {
 }
 
 output "event_action" {
-  description = "PagerDuty event action this status sends: trigger or resolve"
+  description = "PagerDuty event action this status sends: trigger, resolve or none"
   value       = local.event.action
+}
+
+output "dedup_key" {
+  description = "PagerDuty dedup key for this environment and schedule. scripts/maintenance uses the same key, so a toggle can resolve an incident an apply opened."
+  value       = local.dedup_key
 }
