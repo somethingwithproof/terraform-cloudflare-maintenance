@@ -26,6 +26,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Architecture](#architecture)
 - [Input Variables](#input-variables)
 - [Outputs](#outputs)
+- [Deploying with HCP Terraform](#deploying-with-hcp-terraform)
 - [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
 - [Scheduled Maintenance Windows](#scheduled-maintenance-windows)
 - [Bypass, Rate Limiting and Zone Rulesets](#bypass-rate-limiting-and-zone-rulesets)
@@ -54,16 +55,17 @@ This Terraform module provides a robust, enterprise-ready maintenance mode solut
 ### Compliance Features
 
 - **GDPR Compliance**: All access logs are anonymized through Cloudflare's privacy features
-- **SOC2 Compatibility**: Changes enforced through Terraform Cloud audit trails
+- **Audit trail**: CD applies through GitHub Actions with state and run history in HCP Terraform
 - **Secret Management**: API tokens stored as sensitive variables
 
 ### Access Controls
 
+The module has no provider block or token variable. Configure the Cloudflare
+provider in the calling root module, ideally from the `CLOUDFLARE_API_TOKEN`
+environment variable so the token never appears in configuration or state:
+
 ```hcl
-provider "cloudflare" {
-  api_token = var.cloudflare_api_token # Stored as sensitive variable
-  account_id = var.cloudflare_account_id
-}
+provider "cloudflare" {} # reads CLOUDFLARE_API_TOKEN
 ```
 
 ## Prerequisites
@@ -79,12 +81,13 @@ provider "cloudflare" {
 
 ## Quick Start
 
-Initialize and apply:
+Call the module from your own root configuration (see [Usage](#usage)), then:
 
 ```bash
-terraform init
-terraform plan
-terraform apply
+export CLOUDFLARE_API_TOKEN=...   # or configure the provider another way
+tofu init
+tofu plan
+tofu apply
 ```
 
 ## Module Structure
@@ -93,6 +96,7 @@ terraform apply
 - `variables.tf` - Input variable declarations with validation
 - `outputs.tf` - Output value definitions
 - `versions.tf` - Provider version constraints
+- `deploy/` - Root configuration the CD workflow applies with HCP Terraform state
 - `modules/notifications/` - Notification integration submodule
 - `examples/` - Usage examples (basic, advanced, scheduled)
 - `tests/` - Integration tests
@@ -103,10 +107,11 @@ terraform apply
 ### Basic Usage
 
 ```hcl
+provider "cloudflare" {} # reads CLOUDFLARE_API_TOKEN
+
 module "maintenance" {
-  source = "github.com/thomasvincent/terraform-cloudflare-maintenance"
+  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
   
-  cloudflare_api_token = var.cloudflare_api_token
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
   
@@ -128,9 +133,8 @@ For more advanced usage with scheduled maintenance windows, custom styling, and 
 
 ```hcl
 module "maintenance" {
-  source = "github.com/thomasvincent/terraform-cloudflare-maintenance"
+  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
   
-  cloudflare_api_token = var.cloudflare_api_token
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
   
@@ -171,9 +175,8 @@ See the [scheduled maintenance example](examples/scheduled-maintenance/) for a c
 
 ```hcl
 module "maintenance" {
-  source = "github.com/thomasvincent/terraform-cloudflare-maintenance"
+  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
   
-  cloudflare_api_token  = var.cloudflare_api_token
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id
   
@@ -234,7 +237,6 @@ graph TD
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| cloudflare_api_token | Cloudflare API token with least privileges | `string` | n/a | yes |
 | cloudflare_account_id | Cloudflare account ID | `string` | n/a | yes |
 | cloudflare_zone_id | Cloudflare zone ID for the domain | `string` | n/a | yes |
 | worker_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
@@ -266,6 +268,39 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | allowed_regions | List of allowed regions that can bypass maintenance |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
+
+## Deploying with HCP Terraform
+
+The module itself has no backend so it can be reused anywhere. `deploy/` is
+the root configuration that `.github/workflows/cd.yml` applies, with state in
+HCP Terraform through an empty `cloud {}` block configured from the
+environment. The workflow runs on a `v*.*.*` tag (deploys `dev` with
+maintenance off) or from **Run workflow**, where you pick the environment,
+`enabled`, and an optional window. It checks its settings before `tofu init`
+and fails if any is missing, so it never applies with local state.
+
+Before the first run, set up:
+
+| Where | Name | Value |
+|-------|------|-------|
+| Repository variable | `TF_CLOUD_ORGANIZATION` | HCP Terraform organization name |
+| Repository secret | `TF_API_TOKEN` | HCP Terraform team or user API token with access to the workspaces |
+| HCP Terraform workspaces | `cloudflare-maintenance-dev`, `cloudflare-maintenance-staging`, `cloudflare-maintenance-production` | CLI-driven workspaces with **Execution Mode: Local**, so runs happen in GitHub Actions and HCP stores state |
+| GitHub environments `dev`, `staging`, `production` (secrets) | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID` | Cloudflare token with the permissions above, account and zone IDs |
+| GitHub environments (variable) | `WORKER_ROUTE` | Route pattern, for example `example.com/*` |
+
+Use GitHub environment protection rules (for example required reviewers on
+`production`) to gate applies. OpenTofu's `cloud` block speaks the HCP
+Terraform API; HCP officially supports only Terraform, so check that state
+upload works in the `dev` workspace first.
+
+To use the same root locally:
+
+```bash
+export TF_CLOUD_ORGANIZATION=<org> TF_WORKSPACE=cloudflare-maintenance-dev
+tofu login   # or export TF_TOKEN_app_terraform_io
+cd deploy && tofu init && tofu plan
+```
 
 ## Upgrading from Cloudflare Provider v4 State
 

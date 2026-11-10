@@ -240,12 +240,9 @@ run_e2e_tests() {
         echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
 
         # Check for required environment variables
-        if [ -z "${TF_VAR_cloudflare_api_token:-}" ]; then
-            echo -e "${RED}Error: TF_VAR_cloudflare_api_token is required for E2E tests${NC}"
-            echo "Set environment variables:"
-            echo "  export TF_VAR_cloudflare_api_token=your-api-token"
-            echo "  export TF_VAR_cloudflare_account_id=your-account-id"
-            echo "  export TF_VAR_cloudflare_zone_id=your-zone-id"
+        if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -z "${CLOUDFLARE_ZONE_ID:-}" ]; then
+            echo -e "${RED}Error: E2E tests need Cloudflare credentials${NC}"
+            echo "Set CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_ZONE_ID."
             exit 1
         fi
 

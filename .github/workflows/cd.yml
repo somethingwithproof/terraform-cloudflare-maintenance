@@ -1,5 +1,9 @@
 name: OpenTofu CD
 
+# Applies deploy/ to one environment, with state in HCP Terraform. See the
+# README section "Deploying with HCP Terraform" for the required variables,
+# secrets and workspaces.
+
 on:
   push:
     tags:
@@ -15,71 +19,112 @@ on:
           - dev
           - staging
           - production
+      enabled:
+        description: "Serve the maintenance page until disabled"
+        required: false
+        default: false
+        type: boolean
+      window_start:
+        description: "Optional window start (RFC3339, e.g. 2030-04-06T08:00:00Z)"
+        required: false
+        default: ""
+        type: string
+      window_end:
+        description: "Optional window end (RFC3339); required with window_start"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
-  # Required for creating releases
-  actions: read
 
 jobs:
   deploy:
-    name: Deploy to ${{ github.event.inputs.environment || 'dev' }}
+    name: Deploy to ${{ inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'dev' }}
+    environment: ${{ inputs.environment || 'dev' }}
+    # Never run two applies against the same workspace at once.
+    concurrency:
+      group: cd-${{ inputs.environment || 'dev' }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: deploy
+    env:
+      TF_CLOUD_ORGANIZATION: ${{ vars.TF_CLOUD_ORGANIZATION }}
+      TF_WORKSPACE: cloudflare-maintenance-${{ inputs.environment || 'dev' }}
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CF_ZONE_ID }}
+      TF_VAR_worker_route: ${{ vars.WORKER_ROUTE }}
+      TF_VAR_environment: ${{ inputs.environment || 'dev' }}
+      TF_VAR_enabled: ${{ inputs.enabled || false }}
+      WINDOW_START: ${{ inputs.window_start }}
+      WINDOW_END: ${{ inputs.window_end }}
 
     steps:
+      # Fail before init so a missing setting can never fall back to local state.
+      - name: Check required configuration
+        shell: bash
+        working-directory: .
+        run: |
+          missing=()
+          for name in TF_CLOUD_ORGANIZATION TF_TOKEN_app_terraform_io \
+            CLOUDFLARE_API_TOKEN TF_VAR_cloudflare_account_id \
+            TF_VAR_cloudflare_zone_id TF_VAR_worker_route; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Not configured for HCP Terraform deploys; missing: ${missing[*]}. Set repository variable TF_CLOUD_ORGANIZATION, secret TF_API_TOKEN and the Cloudflare settings described in the README."
+            exit 1
+          fi
+          if [[ -n "$WINDOW_START" || -n "$WINDOW_END" ]]; then
+            rfc3339='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+            if [[ ! "$WINDOW_START" =~ $rfc3339 || ! "$WINDOW_END" =~ $rfc3339 ]]; then
+              echo "::error::Set both window_start and window_end as RFC3339 times, or neither."
+              exit 1
+            fi
+          fi
+
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
         with:
           persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "24"
-          cache: "npm"
-          cache-dependency-path: worker/package-lock.json
-
-      - name: Build Worker
-        run: cd worker && npm ci && npm run build
-
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          tofu_version: 1.8.0
+          tofu_version: 1.8.10
+          tofu_wrapper: false
+
+      - name: Set maintenance window
+        if: inputs.window_start != ''
+        shell: bash
+        run: |
+          printf 'TF_VAR_maintenance_window={"start_time":"%s","end_time":"%s"}\n' \
+            "$WINDOW_START" "$WINDOW_END" >> "$GITHUB_ENV"
 
       - name: OpenTofu Init
         run: tofu init
-        env:
-          TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
 
       - name: OpenTofu Plan
-        id: plan
         run: tofu plan -out=tfplan
-        env:
-          TF_VAR_cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}
-          TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}
-          TF_VAR_cloudflare_zone_id: ${{ secrets.CF_ZONE_ID }}
-          TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
-          TF_VAR_enabled: ${{ (github.event.inputs.environment == 'production') && 'false' || 'true' }}
 
       - name: OpenTofu Apply
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
-        run: tofu apply -auto-approve tfplan
-        env:
-          TF_VAR_cloudflare_api_token: ${{ secrets.CF_API_TOKEN }}
-          TF_VAR_cloudflare_account_id: ${{ secrets.CF_ACCOUNT_ID }}
-          TF_VAR_cloudflare_zone_id: ${{ secrets.CF_ZONE_ID }}
-          TF_VAR_environment: ${{ github.event.inputs.environment || 'dev' }}
+        run: tofu apply tfplan
 
-      - name: Create Release for Tags
-        if: startsWith(github.ref, 'refs/tags/')
+  release:
+    name: Create release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
           generate_release_notes: true
-          files: |
-            worker/dist/index.js
-        # Note: This step needs GITHUB_TOKEN with write permissions to create releases
-        # Make sure the token has required permissions in repo settings
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
