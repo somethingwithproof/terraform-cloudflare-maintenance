@@ -5,7 +5,6 @@
 mock_provider "cloudflare" {}
 
 variables {
-  cloudflare_api_token  = "test-api-token"
   cloudflare_account_id = "0123456789abcdef0123456789abcdef"
   cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
   worker_route          = "example.com/*"

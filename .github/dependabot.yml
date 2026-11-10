@@ -25,7 +25,7 @@ updates:
           - "patch"
 
   # =============================================
-  # Terraform (root module and local modules)
+  # Terraform (root module, local modules and the deploy root)
   # =============================================
   - package-ecosystem: "terraform"
     cooldown:
@@ -33,6 +33,7 @@ updates:
     directories:
       - "/"
       - "/modules/notifications"
+      - "/deploy"
     schedule:
       interval: "weekly"
       day: "monday"

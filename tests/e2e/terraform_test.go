@@ -30,15 +30,14 @@ func TestMaintenanceModuleBasic(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "E2E Test Maintenance",
-			"maintenance_message":    "This is an automated E2E test",
-			"contact_email":          "test@example.com",
-			"worker_route":           workerRoute,
-			"environment":            "test",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "E2E Test Maintenance",
+			"maintenance_message":   "This is an automated E2E test",
+			"contact_email":         "test@example.com",
+			"worker_route":          workerRoute,
+			"environment":           "test",
 		},
 		NoColor: true,
 	})
@@ -79,13 +78,12 @@ func TestMaintenanceModuleDisabled(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                false,
-			"maintenance_title":      "Disabled Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               false,
+			"maintenance_title":     "Disabled Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
 		},
 		NoColor: true,
 	})
@@ -100,7 +98,6 @@ func TestMaintenanceModuleDisabled(t *testing.T) {
 
 	workerRoutePattern := terraform.Output(t, terraformOptions, "worker_route_pattern")
 	assert.Equal(t, "Maintenance mode disabled", workerRoutePattern, "Worker route should indicate disabled")
-
 
 }
 
@@ -120,14 +117,13 @@ func TestMaintenanceModuleWithIPAllowlist(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "IP Allowlist Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
-			"allowed_ips":            []string{"192.168.1.1", "10.0.0.1", "8.8.8.8"},
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "IP Allowlist Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
+			"allowed_ips":           []string{"192.168.1.1", "10.0.0.1", "8.8.8.8"},
 		},
 		NoColor: true,
 	})
@@ -156,14 +152,13 @@ func TestMaintenanceModuleWithRegionAllowlist(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Region Allowlist Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
-			"allowed_regions":        []string{"US", "CA", "GB"},
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Region Allowlist Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
+			"allowed_regions":       []string{"US", "CA", "GB"},
 		},
 		NoColor: true,
 	})
@@ -201,13 +196,12 @@ func TestMaintenanceModuleWithMaintenanceWindow(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Scheduled Maintenance Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Scheduled Maintenance Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
 			"maintenance_window": map[string]string{
 				"start_time": startTime,
 				"end_time":   endTime,
@@ -245,13 +239,12 @@ func TestMaintenanceModuleWithRateLimiting(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Rate Limit Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Rate Limit Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
 			"rate_limit": map[string]interface{}{
 				"enabled":             true,
 				"requests_per_period": 100,
@@ -291,16 +284,15 @@ func TestMaintenanceModuleWithCustomStyling(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Custom Style Test",
-			"maintenance_message":    "Testing custom styling",
-			"worker_route":           workerRoute,
-			"environment":            "test",
-			"custom_css":             "body { background-color: #1a1a2e; color: white; }",
-			"logo_url":               "https://example.com/logo.png",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Custom Style Test",
+			"maintenance_message":   "Testing custom styling",
+			"worker_route":          workerRoute,
+			"environment":           "test",
+			"custom_css":            "body { background-color: #1a1a2e; color: white; }",
+			"logo_url":              "https://example.com/logo.png",
 		},
 		NoColor: true,
 	})
@@ -330,13 +322,12 @@ func TestMaintenanceModuleIdempotency(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Idempotency Test",
-			"worker_route":           workerRoute,
-			"environment":            "test",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Idempotency Test",
+			"worker_route":          workerRoute,
+			"environment":           "test",
 		},
 		NoColor: true,
 	})
@@ -378,13 +369,12 @@ func TestMaintenanceModuleEnvironments(t *testing.T) {
 			terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 				TerraformDir: "../../",
 				Vars: map[string]interface{}{
-					"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-					"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-					"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-					"enabled":                true,
-					"maintenance_title":      fmt.Sprintf("%s Maintenance", env),
-					"worker_route":           workerRoute,
-					"environment":            env,
+					"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+					"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+					"enabled":               true,
+					"maintenance_title":     fmt.Sprintf("%s Maintenance", env),
+					"worker_route":          workerRoute,
+					"environment":           env,
 				},
 				NoColor: true,
 			})
@@ -417,19 +407,18 @@ func TestMaintenanceModuleCombinedFeatures(t *testing.T) {
 	terraformOptions := terraform.WithDefaultRetryableErrors(t, &terraform.Options{
 		TerraformDir: "../../",
 		Vars: map[string]interface{}{
-			"cloudflare_api_token":   os.Getenv("CLOUDFLARE_API_TOKEN"),
-			"cloudflare_account_id":  os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
-			"cloudflare_zone_id":     os.Getenv("CLOUDFLARE_ZONE_ID"),
-			"enabled":                true,
-			"maintenance_title":      "Full Feature Test",
-			"maintenance_message":    "Testing all features",
-			"contact_email":          "test@example.com",
-			"worker_route":           workerRoute,
-			"environment":            "test",
-			"allowed_ips":            []string{"192.168.1.1", "10.0.0.1"},
-			"allowed_regions":        []string{"US", "CA"},
-			"custom_css":             "body { background: #000; }",
-			"logo_url":               "https://example.com/logo.png",
+			"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
+			"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
+			"enabled":               true,
+			"maintenance_title":     "Full Feature Test",
+			"maintenance_message":   "Testing all features",
+			"contact_email":         "test@example.com",
+			"worker_route":          workerRoute,
+			"environment":           "test",
+			"allowed_ips":           []string{"192.168.1.1", "10.0.0.1"},
+			"allowed_regions":       []string{"US", "CA"},
+			"custom_css":            "body { background: #000; }",
+			"logo_url":              "https://example.com/logo.png",
 			"maintenance_window": map[string]string{
 				"start_time": startTime,
 				"end_time":   endTime,
@@ -523,7 +512,6 @@ func TestMaintenanceModuleValidationErrors(t *testing.T) {
 
 			uniqueID := random.UniqueId()
 			baseVars := map[string]interface{}{
-				"cloudflare_api_token":  os.Getenv("CLOUDFLARE_API_TOKEN"),
 				"cloudflare_account_id": os.Getenv("CLOUDFLARE_ACCOUNT_ID"),
 				"cloudflare_zone_id":    os.Getenv("CLOUDFLARE_ZONE_ID"),
 				"enabled":               true,

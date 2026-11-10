@@ -1,7 +1,3 @@
-provider "cloudflare" {
-  api_token = var.cloudflare_api_token
-}
-
 # Deploy the maintenance worker
 resource "cloudflare_workers_script" "maintenance" {
   account_id  = var.cloudflare_account_id

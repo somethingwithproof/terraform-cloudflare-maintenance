@@ -8,6 +8,13 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- The module no longer configures the Cloudflare provider and the
+  `cloudflare_api_token` variable is removed. Configure the provider in the
+  calling root module (for example from `CLOUDFLARE_API_TOKEN`) and drop the
+  `cloudflare_api_token` argument. A module with its own provider block cannot
+  be used with `count`, `for_each` or `depends_on`, and it silently overrode
+  the caller's provider. The commented-out `backend.tf` is removed as well.
+
 - Notifications module: `notification_urls` is now a sensitive
   `map(string)` of non-secret names to URLs instead of a list, and
   `webhook://` targets must use HTTPS. Before, the URLs were stored in state
@@ -44,6 +51,10 @@ All notable changes to this module are documented here. The format follows
   deletes the record.
 
 ### Added
+
+- `deploy/` root configuration and a CD workflow that applies it with state in
+  HCP Terraform, one workspace per environment, and fails before `init` when
+  the HCP or Cloudflare settings are missing.
 
 - Scheduled maintenance windows work without `enabled = true`: setting
   `maintenance_window` deploys the Worker route, and the Worker serves the

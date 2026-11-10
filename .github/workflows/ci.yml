@@ -42,13 +42,17 @@ jobs:
       - name: OpenTofu Validate
         run: tofu validate
 
-  validate-examples:
-    name: Validate example (${{ matrix.example }})
+  validate-roots:
+    name: Validate ${{ matrix.dir }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        example: [advanced-config, basic-usage, scheduled-maintenance]
+        dir:
+          - examples/advanced-config
+          - examples/basic-usage
+          - examples/scheduled-maintenance
+          - deploy
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
@@ -61,8 +65,9 @@ jobs:
           tofu_version: 1.8.10
           tofu_wrapper: false
 
+      # -backend=false skips the HCP Terraform cloud block in deploy/.
       - name: Validate
-        working-directory: examples/${{ matrix.example }}
+        working-directory: ${{ matrix.dir }}
         run: |
           tofu init -backend=false
           tofu validate
