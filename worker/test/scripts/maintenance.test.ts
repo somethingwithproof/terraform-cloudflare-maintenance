@@ -216,6 +216,13 @@ describe("scripts/maintenance", () => {
       expect(run(["on"], notify).notifications).toEqual([]);
     });
 
+    it("validate NOTIFY_URL before building curl's config", () => {
+      const result = run(["on"], { ...notify, NOTIFY_URL: 'pagerduty://key\nurl = "https://evil.example"' });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("must not contain whitespace");
+      expect(result.notifications).toEqual([]);
+    });
+
     it("report a failed send without undoing the toggle", () => {
       writeFileSync(join(dir, "notify-fail"), "");
       const result = run(["on"], notify);

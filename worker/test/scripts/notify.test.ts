@@ -187,6 +187,29 @@ describe("notify.sh", () => {
     expect(sent.config).toBe("");
   });
 
+  it.each([
+    ["a newline that would add a config line", 'webhook://https://hooks.example.com/x\nurl = "https://evil.example"'],
+    ["a quote that would end the value", 'webhook://https://hooks.example.com/x" -o "/tmp/x'],
+    ["a backslash escape", "slack://T000/B000/X\\"],
+    ["a space", "pagerduty://routing key"],
+    ["a tab", "pagerduty://routing\tkey"],
+    ["a control character", "pagerduty://routing\u0001key"],
+    ["an empty target", "slack://"],
+    ["plain HTTP", "webhook://http://hooks.example.com/x"],
+  ])("rejects a URL with %s without calling curl", (_name, url) => {
+    const sent = notify(url);
+    expect(sent.status).toBe(1);
+    expect(sent.config).toBe("");
+  });
+
+  it("rejects a bad URL before resolving a recorded incident", () => {
+    const stateFile = join(dir, "state.json");
+    writeFileSync(stateFile, JSON.stringify({ dedup_key: "old", action: "trigger" }));
+    const sent = notify("pagerduty://key\nurl = x", { NOTIFY_STATE_FILE: stateFile, NOTIFY_ACTION: "none" });
+    expect(sent.status).toBe(1);
+    expect(sent.bodies).toEqual([]);
+  });
+
   describe("scheduled windows", () => {
     const scheduled = { NOTIFY_STATUS: "SCHEDULED", NOTIFY_ACTION: "none" };
 
