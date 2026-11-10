@@ -313,6 +313,14 @@ Set up once:
 | | `KV_NAMESPACE_ID` | For **Toggle maintenance**: the `runtime_toggle_namespace_id` output of the first deploy with `RUNTIME_TOGGLE=true` |
 | GitHub environments (secrets, optional) | `MAINTENANCE_NOTIFY_URL` | Notification target for **Toggle maintenance**, in the notifications module's URL format |
 
+**Drift Detection** plans `dev` and `staging` every Monday with the same
+settings and keeps one issue per environment open while Cloudflare or the
+state differs from the configuration (listing resource addresses only, never
+values). It never applies or locks state. `production` waits for its
+required reviewer on every job, so it is planned only from **Run workflow**
+with `include_production`. Environments without the HCP settings are
+skipped.
+
 Each environment deploys its own Worker, `maintenance-page-<environment>`, so
 the three workspaces can share one Cloudflare account without overwriting or
 deleting each other's Worker.
