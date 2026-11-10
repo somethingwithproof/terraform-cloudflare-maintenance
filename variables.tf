@@ -131,7 +131,7 @@ variable "allowed_regions" {
 }
 
 variable "rate_limit" {
-  description = "Rate limiting configuration using Cloudflare Ruleset API"
+  description = "Zone-wide rate limiting rule. Enabling it makes this module own the zone's http_ratelimit entry-point ruleset; disabling it deletes that ruleset. Leave it disabled on zones whose rate limiting rules are managed elsewhere."
   type = object({
     enabled             = optional(bool, false)
     requests_per_period = optional(number, 100)

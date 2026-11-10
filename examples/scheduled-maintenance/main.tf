@@ -94,11 +94,6 @@ output "maintenance_status" {
   value       = module.maintenance.maintenance_status
 }
 
-output "maintenance_page_url" {
-  description = "URL to the maintenance status page"
-  value       = module.maintenance.maintenance_page_url
-}
-
 output "worker_id" {
   description = "Cloudflare Worker ID"
   value       = module.maintenance.worker_id

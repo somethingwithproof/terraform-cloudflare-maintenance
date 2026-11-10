@@ -257,10 +257,6 @@ run "verify_rate_limit_with_maintenance_features" {
     error_message = "Rate limiting should work with other maintenance features"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "IP/Region bypass ruleset should be created"
-  }
 
   assert {
     condition     = output.maintenance_window.start_time == "2025-04-06T08:00:00Z"

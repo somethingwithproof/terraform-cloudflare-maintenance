@@ -27,6 +27,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Input Variables](#input-variables)
 - [Outputs](#outputs)
 - [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
+- [Bypass, Rate Limiting and Zone Rulesets](#bypass-rate-limiting-and-zone-rulesets)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -42,7 +43,7 @@ This Terraform module provides a robust, enterprise-ready maintenance mode solut
 - ⏱️ **Scheduled Maintenance Windows**: Set specific time windows for maintenance mode to be active with RFC3339 timestamps
 - 📅 **Cron-based Scheduling**: Configure recurring maintenance windows with cron expressions
 - 📊 **Analytics Integration**: Built-in logging and monitoring with Cloudflare Analytics Engine
-- 🌍 **Geo-based Routing**: Optional geo-based traffic routing for region-specific maintenance
+- 🌍 **Region Bypass**: Let clients from listed countries past the maintenance page
 - 🔄 **Zero-Downtime Toggle**: Enable/disable maintenance mode without redeployment
 - 🔍 **SEO Friendly**: Proper HTTP status codes and headers for search engines
 - 🔔 **Notification Support**: Slack, PagerDuty, and webhook integrations for maintenance alerts
@@ -74,8 +75,7 @@ provider "cloudflare" {
 - Cloudflare API Token with appropriate permissions:
   - Account.Workers Scripts:Edit
   - Zone.Workers Routes:Edit
-  - Zone.DNS:Edit (if using custom DNS records)
-  - Zone.Firewall Services:Edit (if using IP allowlisting)
+  - Permission to edit the zone's rate limiting rules (only if `rate_limit.enabled` is true)
 
 ## Quick Start
 
@@ -287,11 +287,8 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | worker_route_pattern | Cloudflare route pattern for the maintenance page |
 | maintenance_status | Current status of the maintenance mode (ENABLED/DISABLED) |
 | maintenance_enabled | Whether maintenance mode is currently enabled |
-| maintenance_page_url | URL to access the maintenance page directly |
 | environment | Environment name |
 | maintenance_window | Scheduled maintenance window if configured |
-| dns_record_id | ID of the DNS record for the maintenance status page |
-| ruleset_id | ID of the firewall ruleset for IP/region allowlisting |
 | allowed_regions | List of allowed regions that can bypass maintenance |
 | schedules | Cron-based maintenance schedules for external automation (validation checks the five-field cron shape only, not value ranges) |
 
@@ -299,10 +296,7 @@ For a complete list of outputs, see [outputs.tf](outputs.tf).
 
 ## Upgrading from Cloudflare Provider v4 State
 
-The module uses the Cloudflare provider v5 schema. Provider v5 renamed the
-status-page DNS record resource from `cloudflare_record` to
-`cloudflare_dns_record`, so state written by a v4-era release of this module
-must be re-associated before the first v5 plan. Follow Cloudflare's
+The module uses the Cloudflare provider v5 schema. Follow Cloudflare's
 [version 5 migration guide](https://github.com/cloudflare/terraform-provider-cloudflare/blob/main/docs/guides/version-5-migration.md)
 for the prerequisites:
 
@@ -314,15 +308,34 @@ for the prerequisites:
    `cloudflare_workers_route` and `cloudflare_ruleset` rely on; those resources
    keep their types and are upgraded during the next plan.
 
-Then re-associate the DNS record. Replace `module.maintenance` with your module
-address and keep the zone and record IDs from your v4 state:
+The module no longer manages a status-page DNS record. State written by a
+v4-era release still holds it as `cloudflare_record`, a type the v5 provider
+does not know, so remove it from state before the first v5 plan. Replace
+`module.maintenance` with your module address, then delete the
+`maintenance-status-<environment>` record in the dashboard if you no longer
+need it:
 
 ```bash
 tofu state rm 'module.maintenance.cloudflare_record.maintenance_status[0]'
-tofu import 'module.maintenance.cloudflare_dns_record.maintenance_status[0]' '<zone_id>/<dns_record_id>'
 ```
 
 Review the next `tofu plan` before applying it.
+
+## Bypass, Rate Limiting and Zone Rulesets
+
+`allowed_ips` and `allowed_regions` only let matching clients past the
+maintenance page; the Worker checks them itself. They do not skip the WAF,
+managed rules or rate limiting, and the module creates no firewall rules for
+them.
+
+`rate_limit` is the one setting that touches zone rulesets. Enabling it creates
+the zone's `http_ratelimit` entry-point ruleset, which a zone can have only one
+of. Applying it fails on a zone that already has rate limiting rules, and
+setting `rate_limit.enabled = false` deletes the entry-point ruleset along with
+any rules added to it outside this module. Enable it only on zones whose rate
+limiting rules are managed nowhere else. The rule matches every request
+(`expression = "true"`), so it works on any plan that supports rate limiting
+rules.
 
 ## Cron Expression Reference
 

@@ -41,20 +41,8 @@ run "test_enabled_maintenance" {
     error_message = "Worker route pattern should be configured when maintenance is enabled"
   }
 
-  assert {
-    condition     = output.maintenance_page_url != "Maintenance mode disabled"
-    error_message = "Maintenance page URL should be configured when maintenance is enabled"
-  }
 
-  assert {
-    condition     = output.dns_record_id != "No DNS record created"
-    error_message = "DNS record should be created when maintenance is enabled"
-  }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created when allowed IPs are specified"
-  }
 
   assert {
     condition     = output.environment == "test"
@@ -95,18 +83,6 @@ run "test_disabled_maintenance" {
     error_message = "Worker route should not be configured when maintenance is disabled"
   }
 
-  assert {
-    condition     = output.maintenance_page_url == "Maintenance mode disabled"
-    error_message = "Maintenance page URL should indicate disabled when maintenance is disabled"
-  }
 
-  assert {
-    condition     = output.dns_record_id == "No DNS record created"
-    error_message = "DNS record should not be created when maintenance is disabled"
-  }
 
-  assert {
-    condition     = output.ruleset_id == "No ruleset created"
-    error_message = "Ruleset should not be created when maintenance is disabled"
-  }
 }
