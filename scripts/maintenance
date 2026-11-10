@@ -4,7 +4,9 @@
 #
 # Usage: scripts/maintenance <command> [options]
 #
-#   on [--title T] [--message M]   Serve the page now, until "off" or "clear"
+#   on [--title T] [--message M]   Serve the page now, even outside a window
+#                                  configured in Terraform, until "off" or
+#                                  "clear"
 #   off                            Pass traffic through now, even inside a
 #                                  window configured in Terraform
 #   schedule START END [--title T] [--message M]
@@ -125,7 +127,9 @@ command=${1:-}
 case "$command" in
 on)
   text=$(text_options "$@")
-  put_state "$(jq -c '{enabled: true} + .' <<<"$text")"
+  # window: null, as for off: with a window the Worker ignores enabled, so a
+  # Terraform window would otherwise keep the page down outside it.
+  put_state "$(jq -c '{enabled: true, window: null} + .' <<<"$text")"
   send_notification ENABLED trigger
   ;;
 off)

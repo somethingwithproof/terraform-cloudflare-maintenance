@@ -106,7 +106,12 @@ describe("scripts/maintenance", () => {
   });
 
   it("writes only the fields it is given", () => {
-    expect(Object.keys(stored(run(["on"]).kv[0])).sort()).toEqual(["enabled", "updated_at"]);
+    expect(Object.keys(stored(run(["on"]).kv[0])).sort()).toEqual(["enabled", "updated_at", "window"]);
+  });
+
+  it("turns maintenance on outside a Terraform window", () => {
+    // With a window the Worker ignores enabled, so on must remove it as off does.
+    expect(stored(run(["on"]).kv[0])).toMatchObject({ enabled: true, window: null });
   });
 
   it("turns maintenance off over a Terraform window", () => {
