@@ -6,6 +6,7 @@ name: Toggle maintenance
 # deploy does not undo it. "clear" hands control back to Terraform.
 
 on:
+  # checkov:skip=CKV_GHA_7: an operations task, not a build; the inputs choose what to switch and are passed to the script as arguments
   workflow_dispatch:
     inputs:
       environment:
