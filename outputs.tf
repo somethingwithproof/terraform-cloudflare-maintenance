@@ -15,12 +15,12 @@ output "worker_script_name" {
 
 output "worker_route" {
   description = "The route pattern for the maintenance worker"
-  value       = var.enabled ? var.worker_route : "Not enabled"
+  value       = local.route_enabled ? var.worker_route : "Not enabled"
 }
 
 output "worker_route_pattern" {
   description = "The route pattern for the maintenance worker (alias for compatibility)"
-  value       = var.enabled ? var.worker_route : "Maintenance mode disabled"
+  value       = local.route_enabled ? var.worker_route : "Maintenance mode disabled"
 }
 
 output "maintenance_enabled" {
@@ -29,8 +29,8 @@ output "maintenance_enabled" {
 }
 
 output "maintenance_status" {
-  description = "Current status of the maintenance mode"
-  value       = var.enabled ? "ENABLED" : "DISABLED"
+  description = "SCHEDULED when a maintenance window is set, otherwise ENABLED or DISABLED"
+  value       = var.maintenance_window != null ? "SCHEDULED" : var.enabled ? "ENABLED" : "DISABLED"
 }
 
 output "environment" {
@@ -56,9 +56,4 @@ output "rate_limit_ruleset_id" {
 output "rate_limit_enabled" {
   description = "Whether rate limiting is currently enabled"
   value       = var.rate_limit.enabled
-}
-
-output "schedules" {
-  description = "Cron-based maintenance schedules for external automation that toggles maintenance mode (validation checks the cron field shape only)"
-  value       = var.schedules
 }

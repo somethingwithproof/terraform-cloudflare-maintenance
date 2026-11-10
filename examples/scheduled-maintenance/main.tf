@@ -16,14 +16,10 @@ module "maintenance" {
   # Worker route configuration
   worker_route = "example.com/*"
 
-  # Enable maintenance mode
-  enabled = true
-
-  # Scheduled maintenance window
-  maintenance_window = {
-    start_time = "2025-04-06T08:00:00Z"
-    end_time   = "2025-04-06T10:00:00Z"
-  }
+  # The window alone schedules maintenance: the route is deployed now and the
+  # Worker serves the page only between start_time and end_time.
+  enabled            = false
+  maintenance_window = var.maintenance_window
 
   # Custom maintenance page
   maintenance_title   = "Scheduled System Maintenance"
@@ -47,24 +43,6 @@ module "maintenance" {
   # Allow bypass for specific IPs and regions
   allowed_ips     = ["192.168.1.100", "10.0.0.1"]
   allowed_regions = ["US", "CA"]
-
-  # Support for cron-based schedules (for documentation purposes)
-  schedules = [
-    {
-      name     = "weekly-maintenance"
-      cron     = "0 2 * * SUN"
-      duration = "2h"
-      timezone = "America/Los_Angeles"
-      notify   = ["slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"]
-    },
-    {
-      name     = "monthly-patching"
-      cron     = "0 3 1 * *"
-      duration = "4h"
-      timezone = "UTC"
-      notify   = ["pagerduty://your-routing-key", "webhook://https://example.com/webhook"]
-    }
-  ]
 }
 
 # Optional: Send notifications about the maintenance window
@@ -82,10 +60,7 @@ module "maintenance_notifications" {
   schedule_name      = "scheduled-maintenance"
   environment        = var.environment
 
-  maintenance_window = {
-    start_time = "2025-04-06T08:00:00Z"
-    end_time   = "2025-04-06T10:00:00Z"
-  }
+  maintenance_window = var.maintenance_window
 }
 
 # Output maintenance information

@@ -8,6 +8,14 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- Removed the `schedules` variable and output. Nothing consumed them; the
+  cron schedules were never acted on. Remove `schedules` from module calls.
+- A `maintenance_window` now restricts the page to that window even when
+  `enabled = true`. Before, `enabled = true` served the page at all times and
+  the window had no effect. To serve the page immediately, set `enabled = true`
+  and leave `maintenance_window` unset.
+- `maintenance_status` reports `SCHEDULED` whenever a window is set.
+
 - Removed the `maintenance-bypass-<environment>` ruleset. It created the
   zone's `http_request_firewall_custom` entry-point ruleset and skipped the
   WAF, managed rules and rate limiting for every request from
@@ -23,6 +31,11 @@ All notable changes to this module are documented here. The format follows
   deletes the record.
 
 ### Added
+
+- Scheduled maintenance windows work without `enabled = true`: setting
+  `maintenance_window` deploys the Worker route, and the Worker serves the
+  page from `start_time` (inclusive) to `end_time` (exclusive) and passes
+  traffic through outside it. `end_time` must be after `start_time`.
 
 - `allowed_ips` accepts IPv4 and IPv6 CIDR ranges, matches IPv6 addresses in
   any spelling and treats IPv4-mapped IPv6 as IPv4. Entries are validated at

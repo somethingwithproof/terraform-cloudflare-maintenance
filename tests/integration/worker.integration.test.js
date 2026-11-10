@@ -223,6 +223,21 @@ describe("Worker Integration Tests", () => {
       expect(response.status).toBe(200);
     });
 
+    it("should pass through outside the window even when enabled", async () => {
+      const now = new Date();
+      const start = new Date(now.getTime() - 7200000).toISOString(); // 2 hours ago
+      const end = new Date(now.getTime() - 3600000).toISOString(); // 1 hour ago
+
+      await setBindings({
+        MAINTENANCE_ENABLED: "true",
+        MAINTENANCE_WINDOW_START: start,
+        MAINTENANCE_WINDOW_END: end,
+      });
+
+      const response = await mf.dispatchFetch("https://example.com/");
+      expect(response.status).toBe(200);
+    });
+
     it("should show expected completion time in maintenance page", async () => {
       const now = new Date();
       const start = new Date(now.getTime() - 3600000).toISOString();

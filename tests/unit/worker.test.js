@@ -122,31 +122,65 @@ describe("escapeHtml", () => {
   });
 });
 
-describe("checkMaintenanceWindow", () => {
+describe("Scheduled maintenance window", () => {
   const window = {
     MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
     MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
   };
-  const at = (iso, bindings = window) =>
-    loadWorker(bindings).checkMaintenanceWindow(new Date(iso));
 
-  it("is true inside the window and at its start", () => {
-    expect(at("2025-04-06T09:00:00Z")).toBe(true);
-    expect(at("2025-04-06T08:00:00Z")).toBe(true);
+  // Serve one request at the given instant through the real handler.
+  async function statusAt(iso, bindings) {
+    vi.useFakeTimers({ now: new Date(iso), toFake: ["Date"] });
+    try {
+      const worker = loadWorker(bindings);
+      return (await worker.handleRequest(request())).status;
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+
+  for (const enabled of ["true", "false"]) {
+    describe(`with MAINTENANCE_ENABLED=${enabled}`, () => {
+      const bindings = { ...window, MAINTENANCE_ENABLED: enabled };
+
+      it("passes traffic through before the window", async () => {
+        expect(await statusAt("2025-04-06T07:59:59Z", bindings)).toBe(200);
+      });
+
+      it("serves maintenance from the start of the window", async () => {
+        expect(await statusAt("2025-04-06T08:00:00Z", bindings)).toBe(503);
+        expect(await statusAt("2025-04-06T09:59:59Z", bindings)).toBe(503);
+      });
+
+      it("passes traffic through from the end of the window", async () => {
+        expect(await statusAt("2025-04-06T10:00:00Z", bindings)).toBe(200);
+        expect(await statusAt("2025-04-07T00:00:00Z", bindings)).toBe(200);
+      });
+    });
+  }
+
+  it("serves maintenance at any time when enabled without a window", async () => {
+    const bindings = { MAINTENANCE_ENABLED: "true" };
+    expect(await statusAt("2025-04-06T07:00:00Z", bindings)).toBe(503);
+    expect(await statusAt("2030-01-01T00:00:00Z", bindings)).toBe(503);
   });
 
-  it("is false before and after the window", () => {
-    expect(at("2025-04-06T07:59:59Z")).toBe(false);
-    expect(at("2025-04-06T10:00:01Z")).toBe(false);
+  it("passes traffic through when disabled without a window", async () => {
+    const bindings = { MAINTENANCE_ENABLED: "false" };
+    expect(await statusAt("2025-04-06T09:00:00Z", bindings)).toBe(200);
   });
 
-  it("is false without a window or with unparseable times", () => {
-    expect(at("2025-04-06T09:00:00Z", {})).toBe(false);
+  it("falls back to MAINTENANCE_ENABLED when the window is unparseable", () => {
+    const at = new Date("2025-04-06T09:00:00Z");
+    const broken = {
+      MAINTENANCE_WINDOW_START: "not-a-date",
+      MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
+    };
     expect(
-      at("2025-04-06T09:00:00Z", {
-        MAINTENANCE_WINDOW_START: "not-a-date",
-        MAINTENANCE_WINDOW_END: "also-not-a-date",
-      }),
+      loadWorker({ ...broken, MAINTENANCE_ENABLED: "true" }).isMaintenanceActive(at),
+    ).toBe(true);
+    expect(
+      loadWorker({ ...broken, MAINTENANCE_ENABLED: "false" }).isMaintenanceActive(at),
     ).toBe(false);
   });
 });

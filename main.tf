@@ -63,9 +63,15 @@ resource "cloudflare_workers_script" "maintenance" {
   ]
 }
 
-# Create the worker route when enabled
+locals {
+  # The route is needed whenever the Worker may serve the page: while enabled,
+  # or for a scheduled window. With a window the Worker checks the time on
+  # each request and passes traffic through outside it.
+  route_enabled = var.enabled || var.maintenance_window != null
+}
+
 resource "cloudflare_workers_route" "maintenance" {
-  count   = var.enabled ? 1 : 0
+  count   = local.route_enabled ? 1 : 0
   zone_id = var.cloudflare_zone_id
   pattern = var.worker_route
   script  = cloudflare_workers_script.maintenance.script_name

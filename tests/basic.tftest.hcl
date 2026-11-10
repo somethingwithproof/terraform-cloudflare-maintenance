@@ -1,5 +1,5 @@
-# Core resources: the Worker script is always deployed; the route only when
-# maintenance is enabled. Plans run against a mocked provider, so no test
+# Core resources: the Worker script is always deployed; the route whenever
+# maintenance is enabled or a maintenance window is set. Plans run against a mocked provider, so no test
 # ever calls the Cloudflare API.
 
 mock_provider "cloudflare" {}
@@ -96,4 +96,79 @@ run "no_zone_rulesets_by_default" {
     condition     = length(cloudflare_ruleset.rate_limit) == 0
     error_message = "Bypass lists must not create zone rulesets"
   }
+}
+
+run "window_without_enabled_deploys_route" {
+  command = plan
+
+  variables {
+    enabled = false
+    maintenance_window = {
+      start_time = "2025-04-06T08:00:00Z"
+      end_time   = "2025-04-06T10:00:00Z"
+    }
+  }
+
+  assert {
+    condition     = length(cloudflare_workers_route.maintenance) == 1
+    error_message = "A scheduled window should deploy the route even when enabled is false"
+  }
+
+  assert {
+    condition     = cloudflare_workers_route.maintenance[0].pattern == "example.com/*"
+    error_message = "Scheduled route should use worker_route as its pattern"
+  }
+
+  assert {
+    condition     = output.maintenance_status == "SCHEDULED" && output.worker_route_pattern == "example.com/*"
+    error_message = "Outputs should report the scheduled route"
+  }
+}
+
+run "window_with_enabled_deploys_one_route" {
+  command = plan
+
+  variables {
+    enabled = true
+    maintenance_window = {
+      start_time = "2025-04-06T08:00:00Z"
+      end_time   = "2025-04-06T10:00:00Z"
+    }
+  }
+
+  assert {
+    condition     = length(cloudflare_workers_route.maintenance) == 1
+    error_message = "Exactly one route should be planned when enabled with a window"
+  }
+
+  assert {
+    condition     = output.maintenance_status == "SCHEDULED"
+    error_message = "A window should take precedence over enabled in maintenance_status"
+  }
+}
+
+run "reject_window_ending_before_it_starts" {
+  command = plan
+
+  variables {
+    maintenance_window = {
+      start_time = "2025-04-06T10:00:00Z"
+      end_time   = "2025-04-06T08:00:00Z"
+    }
+  }
+
+  expect_failures = [var.maintenance_window]
+}
+
+run "reject_empty_window" {
+  command = plan
+
+  variables {
+    maintenance_window = {
+      start_time = "2025-04-06T08:00:00Z"
+      end_time   = "2025-04-06T08:00:00Z"
+    }
+  }
+
+  expect_failures = [var.maintenance_window]
 }
