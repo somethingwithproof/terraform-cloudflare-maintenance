@@ -22,7 +22,7 @@ concurrency:
 jobs:
   validate:
     name: Validate OpenTofu
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
@@ -33,7 +33,7 @@ jobs:
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
           tofu_version: 1.8.10
-          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          # Call the tofu binary directly; the Node wrapper only re-exports outputs.
           tofu_wrapper: false
 
       - name: OpenTofu Init
@@ -44,7 +44,7 @@ jobs:
 
   tflint:
     name: TFLint
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
@@ -64,7 +64,7 @@ jobs:
 
   tfsec:
     name: TFSec
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
@@ -78,7 +78,7 @@ jobs:
 
   test-worker:
     name: Test Cloudflare Worker
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
@@ -110,7 +110,7 @@ jobs:
 
   test-opentofu:
     name: Run OpenTofu Tests
-    runs-on: [self-hosted, linux, x64]
+    runs-on: ubuntu-latest
     needs: [validate, tflint, tfsec]
     steps:
       - name: Checkout code
@@ -122,7 +122,7 @@ jobs:
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
           tofu_version: 1.8.10
-          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          # Call the tofu binary directly; the Node wrapper only re-exports outputs.
           tofu_wrapper: false
 
       - name: OpenTofu Init
