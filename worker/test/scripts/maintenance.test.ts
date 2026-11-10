@@ -72,7 +72,7 @@ function run(args: string[], env: Record<string, string> = {}) {
     env: {
       PATH: `${dir}:${process.env.PATH ?? ""}`,
       STUB_DIR: dir,
-      CLOUDFLARE_API_TOKEN: "test-token",
+      CF_KV_API_TOKEN: "test-token",
       CF_ACCOUNT_ID: account,
       KV_NAMESPACE_ID: namespace,
       ...env,
@@ -161,6 +161,13 @@ describe("scripts/maintenance", () => {
   it("keeps the token off curl's command line", () => {
     const call = run(["on"]).kv[0];
     expect(call?.config).toBe('header = "Authorization: Bearer test-token"');
+  });
+
+  it("requires the KV token before calling Cloudflare", () => {
+    const result = run(["on"], { CF_KV_API_TOKEN: "", CLOUDFLARE_API_TOKEN: "deploy-token" });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("CF_KV_API_TOKEN");
+    expect(result.kv).toEqual([]);
   });
 
   it.each([
