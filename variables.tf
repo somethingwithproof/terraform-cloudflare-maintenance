@@ -128,6 +128,27 @@ variable "retry_after_seconds" {
   }
 }
 
+variable "runtime_toggle" {
+  description = "Lets scripts/maintenance (or the Toggle maintenance workflow) switch maintenance on and off, set a window or change the text within about a minute, without an apply. Creates a Workers KV namespace the Worker reads on each request (cached at each edge location for cache_ttl_seconds), and keeps the route deployed while enabled. failure_mode decides what happens if KV cannot be read or holds a malformed value: \"open\" passes traffic to the origin, \"closed\" serves the maintenance page."
+  type = object({
+    enabled           = optional(bool, false)
+    failure_mode      = optional(string, "open")
+    cache_ttl_seconds = optional(number, 60)
+  })
+  default  = {}
+  nullable = false
+
+  validation {
+    condition     = contains(["open", "closed"], var.runtime_toggle.failure_mode)
+    error_message = "runtime_toggle.failure_mode must be \"open\" or \"closed\"."
+  }
+
+  validation {
+    condition     = var.runtime_toggle.cache_ttl_seconds >= 30 && var.runtime_toggle.cache_ttl_seconds <= 3600 && floor(var.runtime_toggle.cache_ttl_seconds) == var.runtime_toggle.cache_ttl_seconds
+    error_message = "runtime_toggle.cache_ttl_seconds must be a whole number from 30 (the Workers KV minimum) to 3600."
+  }
+}
+
 variable "status_path" {
   description = "Path of the JSON status endpoint the Worker answers on every routed hostname, for everyone and without contacting the origin: {maintenance, window, retry_after_seconds}. It holds no allowlist or contact data. Empty disables it."
   type        = string

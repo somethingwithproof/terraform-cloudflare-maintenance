@@ -12,3 +12,8 @@ output "worker_name" {
   description = "Name of this environment's Worker script"
   value       = module.maintenance.worker_name
 }
+
+output "runtime_toggle_namespace_id" {
+  description = "Set this as the environment's KV_NAMESPACE_ID variable for the Toggle maintenance workflow"
+  value       = module.maintenance.runtime_toggle_namespace_id
+}

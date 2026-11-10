@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# Switches the maintenance page at runtime through the module's KV toggle
+# (runtime_toggle.enabled = true), without a Terraform apply.
+#
+# Usage: scripts/maintenance <command> [options]
+#
+#   on [--title T] [--message M]   Serve the page now, until "off" or "clear"
+#   off                            Pass traffic through now, even inside a
+#                                  window configured in Terraform
+#   schedule START END [--title T] [--message M]
+#                                  Serve the page from START to END, UTC
+#                                  times such as 2030-04-06T08:00:00Z
+#   clear                          Remove the override; Terraform's settings
+#                                  apply again
+#   status                         Print the stored override
+#
+# Environment:
+#   CLOUDFLARE_API_TOKEN   Token with Workers KV Storage: Edit on the account
+#   CF_ACCOUNT_ID          Account ID
+#   KV_NAMESPACE_ID        The module's runtime_toggle_namespace_id output
+#   NOTIFY_URL             Optional notification target in the notifications
+#                          module's format (slack://, pagerduty://,
+#                          webhook://https://...). on triggers, off and clear
+#                          resolve, schedule informs without paging.
+#   NOTIFY_ENVIRONMENT     Environment name for notifications
+#   NOTIFY_SCHEDULE        Schedule name for notifications (default
+#                          runtime-toggle); the PagerDuty dedup key is
+#                          terraform-cloudflare-maintenance/<env>/<schedule>
+#
+# Each edge location caches the override for runtime_toggle.cache_ttl_seconds
+# (default 60), and KV takes up to about a minute to propagate a write, so a
+# change can take that long to reach every request. The token never appears
+# on a command line: curl reads it from its config on stdin.
+
+set -euo pipefail
+
+readonly api="https://api.cloudflare.com/client/v4"
+readonly key="state"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly notify="$script_dir/../modules/notifications/notify.sh"
+
+usage() {
+  sed -n '5,17p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
+
+fail() {
+  echo "maintenance: $1" >&2
+  exit 1
+}
+
+: "${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
+: "${CF_ACCOUNT_ID:?set CF_ACCOUNT_ID}"
+: "${KV_NAMESPACE_ID:?set KV_NAMESPACE_ID (the runtime_toggle_namespace_id output)}"
+# Both go into the URL path, so allow only what Cloudflare IDs look like.
+[[ "$CF_ACCOUNT_ID" =~ ^[0-9a-f]{32}$ ]] || fail "CF_ACCOUNT_ID must be 32 hex characters"
+[[ "$KV_NAMESPACE_ID" =~ ^[0-9a-f]{32}$ ]] || fail "KV_NAMESPACE_ID must be 32 hex characters"
+readonly url="$api/accounts/$CF_ACCOUNT_ID/storage/kv/namespaces/$KV_NAMESPACE_ID/values/$key"
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# cf METHOD [curl args...]: calls the KV value endpoint, writing the body to
+# $tmp/response and printing the HTTP status.
+cf() {
+  local method=$1
+  shift
+  printf 'header = "Authorization: Bearer %s"\n' "$CLOUDFLARE_API_TOKEN" |
+    curl --config - -sS --max-time 30 --retry 2 -o "$tmp/response" \
+      -w '%{http_code}' -X "$method" "$@" "$url"
+}
+
+# put_state JSON: stores the override, or fails with Cloudflare's errors.
+put_state() {
+  jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. + {updated_at: $now}' <<<"$1" >"$tmp/state"
+  local code
+  code=$(cf PUT -H 'Content-Type: application/json' --data-binary "@$tmp/state")
+  [[ "$code" == 200 ]] || fail "writing the override failed (HTTP $code): $(jq -c '.errors // .' "$tmp/response" 2>/dev/null || true)"
+  echo "Stored: $(cat "$tmp/state")"
+}
+
+# send_notification STATUS ACTION: notifies NOTIFY_URL, if set. A failed
+# notification is reported but does not undo the toggle.
+send_notification() {
+  [[ -n "${NOTIFY_URL:-}" ]] || return 0
+  local environment=${NOTIFY_ENVIRONMENT:-}
+  local schedule=${NOTIFY_SCHEDULE:-runtime-toggle}
+  if ! NOTIFY_STATUS=$1 NOTIFY_ACTION=$2 NOTIFY_SCHEDULE=$schedule \
+    NOTIFY_ENVIRONMENT=$environment NOTIFY_START=${3:-} NOTIFY_END=${4:-} \
+    NOTIFY_DEDUP_KEY="terraform-cloudflare-maintenance/$environment/$schedule" \
+    NOTIFY_URL=$NOTIFY_URL "$notify"; then
+    echo "maintenance: the toggle was applied but the notification failed" >&2
+    return 1
+  fi
+}
+
+# text_options ARGS...: reads --title and --message into a JSON object.
+text_options() {
+  local title="" message="" has_title=false has_message=false
+  while (($#)); do
+    case "$1" in
+    --title)
+      (($# >= 2)) || usage
+      title=$2 has_title=true
+      shift 2
+      ;;
+    --message)
+      (($# >= 2)) || usage
+      message=$2 has_message=true
+      shift 2
+      ;;
+    *) usage ;;
+    esac
+  done
+  jq -cn --arg title "$title" --arg message "$message" \
+    --argjson has_title "$has_title" --argjson has_message "$has_message" \
+    '(if $has_title then {title: $title} else {} end) + (if $has_message then {message: $message} else {} end)'
+}
+
+# UTC in one fixed format, so that comparing the strings compares the times.
+utc='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+
+command=${1:-}
+(($#)) && shift
+case "$command" in
+on)
+  text=$(text_options "$@")
+  put_state "$(jq -c '{enabled: true} + .' <<<"$text")"
+  send_notification ENABLED trigger
+  ;;
+off)
+  (($# == 0)) || usage
+  put_state '{"enabled": false, "window": null}'
+  send_notification DISABLED resolve
+  ;;
+schedule)
+  (($# >= 2)) || usage
+  start=$1 end=$2
+  shift 2
+  [[ "$start" =~ $utc && "$end" =~ $utc ]] || fail "START and END must be UTC times such as 2030-04-06T08:00:00Z"
+  [[ "$start" < "$end" ]] || fail "END must be after START"
+  text=$(text_options "$@")
+  put_state "$(jq -c --arg s "$start" --arg e "$end" '{window: {start_time: $s, end_time: $e}} + .' <<<"$text")"
+  send_notification SCHEDULED none "$start" "$end"
+  ;;
+clear)
+  (($# == 0)) || usage
+  code=$(cf DELETE)
+  [[ "$code" == 200 || "$code" == 404 ]] || fail "removing the override failed (HTTP $code): $(jq -c '.errors // .' "$tmp/response" 2>/dev/null || true)"
+  echo "Override removed; Terraform's settings apply."
+  send_notification COMPLETED resolve
+  ;;
+status)
+  (($# == 0)) || usage
+  code=$(cf GET)
+  case "$code" in
+  200) jq . "$tmp/response" 2>/dev/null || {
+    echo "maintenance: the stored override is not JSON, so the Worker treats it as a KV failure:" >&2
+    cat "$tmp/response" >&2
+    exit 1
+  } ;;
+  404) echo "No override; Terraform's settings apply." ;;
+  *) fail "reading the override failed (HTTP $code)" ;;
+  esac
+  ;;
+*) usage ;;
+esac

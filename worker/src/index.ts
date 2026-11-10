@@ -4,6 +4,7 @@
 import { renderPage } from "./html";
 import { isAllowedIp } from "./ip";
 import { parsePages, selectPage } from "./pages";
+import { cacheTtlSeconds, readOverride } from "./toggle";
 import { isMaintenanceActive, parseJsonList, parseWindow, retryAfterSeconds } from "./schedule";
 
 export interface Env {
@@ -24,6 +25,11 @@ export interface Env {
   STATUS_PATH?: string;
   /** JSON array of per-host and per-path page text; see pages.ts. */
   PAGES?: string;
+  /** The runtime toggle's namespace, when the module enables it. */
+  MAINTENANCE_KV?: KVNamespace;
+  /** "open" (pass traffic through) or "closed" (serve the page) when KV fails. */
+  KV_FAILURE_MODE?: string;
+  KV_CACHE_TTL?: string;
 }
 
 export const CONTENT_SECURITY_POLICY =
@@ -63,8 +69,27 @@ function statusResponse(request: Request, status: MaintenanceStatus): Response {
 }
 
 export async function handleRequest(request: Request, env: Env, now: Date = new Date()): Promise<Response> {
-  const window = parseWindow(env.MAINTENANCE_WINDOW_START, env.MAINTENANCE_WINDOW_END);
-  const active = isMaintenanceActive(env.MAINTENANCE_ENABLED === "true", window, now);
+  let enabled = env.MAINTENANCE_ENABLED === "true";
+  let window = parseWindow(env.MAINTENANCE_WINDOW_START, env.MAINTENANCE_WINDOW_END);
+  // Text set through the toggle applies to every page, pages included.
+  let title: string | undefined;
+  let message: string | undefined;
+  let active: boolean;
+
+  if (env.MAINTENANCE_KV) {
+    const toggle = await readOverride(env.MAINTENANCE_KV, cacheTtlSeconds(env.KV_CACHE_TTL));
+    if (toggle.kind === "override") {
+      const o = toggle.override;
+      enabled = o.enabled ?? enabled;
+      if (o.window !== undefined) window = o.window;
+      title = o.title;
+      message = o.message;
+    }
+    active =
+      toggle.kind === "error" ? env.KV_FAILURE_MODE === "closed" : isMaintenanceActive(enabled, window, now);
+  } else {
+    active = isMaintenanceActive(enabled, window, now);
+  }
   const retryAfter = retryAfterSeconds(window, env.RETRY_AFTER, now);
   const url = new URL(request.url);
 
@@ -94,8 +119,8 @@ export async function handleRequest(request: Request, env: Env, now: Date = new 
 
   const page = selectPage(parsePages(env.PAGES), url);
   const html = renderPage({
-    title: page?.title ?? env.MAINTENANCE_TITLE ?? "",
-    message: page?.message ?? env.MAINTENANCE_MESSAGE ?? "",
+    title: title ?? page?.title ?? env.MAINTENANCE_TITLE ?? "",
+    message: message ?? page?.message ?? env.MAINTENANCE_MESSAGE ?? "",
     contactEmail: env.CONTACT_EMAIL ?? "",
     customCss: env.CUSTOM_CSS ?? "",
     logoUrl: env.LOGO_URL ?? "",

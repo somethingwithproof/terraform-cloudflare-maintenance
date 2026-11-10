@@ -16,6 +16,14 @@
     "ALLOWED_IPS": "[]",
     "ALLOWED_REGIONS": "[]",
     "STATUS_PATH": "/__maintenance/status",
-    "PAGES": "[]"
-  }
+    "PAGES": "[]",
+    "KV_FAILURE_MODE": "open",
+    "KV_CACHE_TTL": "60"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "MAINTENANCE_KV",
+      "id": "local-maintenance-toggle"
+    }
+  ]
 }

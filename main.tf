@@ -16,6 +16,14 @@ locals {
   compatibility_date = jsondecode(file("${path.module}/worker/wrangler.json")).compatibility_date
 }
 
+# The runtime toggle's state. scripts/maintenance writes the "state" key;
+# Terraform never manages the key, so an apply does not undo a toggle.
+resource "cloudflare_workers_kv_namespace" "toggle" {
+  count      = var.runtime_toggle.enabled ? 1 : 0
+  account_id = var.cloudflare_account_id
+  title      = "${local.script_name}-toggle"
+}
+
 # Deploy the maintenance worker
 resource "cloudflare_workers_script" "maintenance" {
   account_id  = var.cloudflare_account_id
@@ -41,7 +49,7 @@ resource "cloudflare_workers_script" "maintenance" {
   }
 
   # Environment variables for the worker
-  bindings = [
+  bindings = concat([
     {
       name = "MAINTENANCE_ENABLED"
       type = "plain_text"
@@ -107,14 +115,31 @@ resource "cloudflare_workers_script" "maintenance" {
       type = "secret_text"
       text = jsonencode(var.allowed_regions)
     },
-  ]
+    {
+      name = "KV_FAILURE_MODE"
+      type = "plain_text"
+      text = var.runtime_toggle.failure_mode
+    },
+    {
+      name = "KV_CACHE_TTL"
+      type = "plain_text"
+      text = tostring(var.runtime_toggle.cache_ttl_seconds)
+    },
+    ], [
+    for namespace in cloudflare_workers_kv_namespace.toggle : {
+      name         = "MAINTENANCE_KV"
+      type         = "kv_namespace"
+      namespace_id = namespace.id
+    }
+  ])
 }
 
 locals {
   # The route is needed whenever the Worker may serve the page: while enabled,
-  # or for a scheduled window. With a window the Worker checks the time on
-  # each request and passes traffic through outside it.
-  route_enabled = var.enabled || var.maintenance_window != null
+  # for a scheduled window, or while the runtime toggle can turn it on. With a
+  # window or the toggle the Worker decides on each request and passes
+  # traffic through when maintenance is off.
+  route_enabled = var.enabled || var.maintenance_window != null || var.runtime_toggle.enabled
 }
 
 resource "cloudflare_workers_route" "maintenance" {

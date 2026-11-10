@@ -57,3 +57,9 @@ variable "contact_email" {
   type        = string
   default     = ""
 }
+
+variable "runtime_toggle" {
+  description = "Create the runtime toggle's KV namespace so the Toggle maintenance workflow can switch maintenance without a deploy"
+  type        = bool
+  default     = false
+}

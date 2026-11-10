@@ -93,6 +93,14 @@ All notable changes to this module are documented here. The format follows
 
 ### Added
 
+- `runtime_toggle`: an opt-in Workers KV override the Worker reads on each
+  request, with `scripts/maintenance` (`on`, `off`, `schedule`, `clear`,
+  `status`) and a **Toggle maintenance** workflow to switch maintenance in
+  about a minute without an apply. `failure_mode` chooses whether a KV
+  failure passes traffic through (`open`, default) or serves the page
+  (`closed`). Toggles can notify through `notify.sh`, resolving the
+  PagerDuty incident when maintenance is switched off.
+
 - `status_path`: a JSON status endpoint (`maintenance`, `window`,
   `retry_after_seconds`) for status pages and probes.
 - `pages`: title and message overrides per hostname and path prefix.

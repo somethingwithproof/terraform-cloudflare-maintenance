@@ -253,6 +253,56 @@ function parseJsonList(json) {
 }
 __name(parseJsonList, "parseJsonList");
 
+// src/toggle.ts
+var STATE_KEY = "state";
+function parseOverride(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const raw = value;
+  const override = {};
+  if ("enabled" in raw) {
+    if (typeof raw.enabled !== "boolean") return null;
+    override.enabled = raw.enabled;
+  }
+  if ("window" in raw) {
+    if (raw.window === null) {
+      override.window = null;
+    } else {
+      const w = raw.window;
+      const start = typeof w?.start_time === "string" ? w.start_time : void 0;
+      const end = typeof w?.end_time === "string" ? w.end_time : void 0;
+      const window = parseWindow(start, end);
+      if (!window || window.end <= window.start) return null;
+      override.window = window;
+    }
+  }
+  for (const field of ["title", "message"]) {
+    if (field in raw) {
+      const text = raw[field];
+      if (typeof text !== "string") return null;
+      override[field] = text;
+    }
+  }
+  return override;
+}
+__name(parseOverride, "parseOverride");
+async function readOverride(kv, cacheTtl) {
+  let value;
+  try {
+    value = await kv.get(STATE_KEY, { type: "json", cacheTtl });
+  } catch {
+    return { kind: "error" };
+  }
+  if (value === null) return { kind: "none" };
+  const override = parseOverride(value);
+  return override ? { kind: "override", override } : { kind: "error" };
+}
+__name(readOverride, "readOverride");
+function cacheTtlSeconds(configured) {
+  const value = Number(configured);
+  return Number.isInteger(value) && value >= 30 ? value : 60;
+}
+__name(cacheTtlSeconds, "cacheTtlSeconds");
+
 // src/index.ts
 var CONTENT_SECURITY_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src https:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'";
 var PAGE_HEADERS = {
@@ -281,8 +331,24 @@ function statusResponse(request, status) {
 }
 __name(statusResponse, "statusResponse");
 async function handleRequest(request, env, now = /* @__PURE__ */ new Date()) {
-  const window = parseWindow(env.MAINTENANCE_WINDOW_START, env.MAINTENANCE_WINDOW_END);
-  const active = isMaintenanceActive(env.MAINTENANCE_ENABLED === "true", window, now);
+  let enabled = env.MAINTENANCE_ENABLED === "true";
+  let window = parseWindow(env.MAINTENANCE_WINDOW_START, env.MAINTENANCE_WINDOW_END);
+  let title;
+  let message;
+  let active;
+  if (env.MAINTENANCE_KV) {
+    const toggle = await readOverride(env.MAINTENANCE_KV, cacheTtlSeconds(env.KV_CACHE_TTL));
+    if (toggle.kind === "override") {
+      const o = toggle.override;
+      enabled = o.enabled ?? enabled;
+      if (o.window !== void 0) window = o.window;
+      title = o.title;
+      message = o.message;
+    }
+    active = toggle.kind === "error" ? env.KV_FAILURE_MODE === "closed" : isMaintenanceActive(enabled, window, now);
+  } else {
+    active = isMaintenanceActive(enabled, window, now);
+  }
   const retryAfter = retryAfterSeconds(window, env.RETRY_AFTER, now);
   const url = new URL(request.url);
   if (env.STATUS_PATH && url.pathname === env.STATUS_PATH) {
@@ -304,8 +370,8 @@ async function handleRequest(request, env, now = /* @__PURE__ */ new Date()) {
   }
   const page = selectPage(parsePages(env.PAGES), url);
   const html = renderPage({
-    title: page?.title ?? env.MAINTENANCE_TITLE ?? "",
-    message: page?.message ?? env.MAINTENANCE_MESSAGE ?? "",
+    title: title ?? page?.title ?? env.MAINTENANCE_TITLE ?? "",
+    message: message ?? page?.message ?? env.MAINTENANCE_MESSAGE ?? "",
     contactEmail: env.CONTACT_EMAIL ?? "",
     customCss: env.CUSTOM_CSS ?? "",
     logoUrl: env.LOGO_URL ?? "",

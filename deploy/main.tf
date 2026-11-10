@@ -36,4 +36,5 @@ module "maintenance" {
   allowed_ips        = var.allowed_ips
   allowed_regions    = var.allowed_regions
   contact_email      = var.contact_email
+  runtime_toggle     = { enabled = var.runtime_toggle }
 }
