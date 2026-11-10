@@ -20,20 +20,29 @@ on:
           - staging
           - production
       enabled:
-        description: "Serve the maintenance page until disabled"
+        description: "Serve the maintenance page: keep the environment's MAINTENANCE_ENABLED, or override it for this run"
         required: false
-        default: false
-        type: boolean
+        default: "environment"
+        type: choice
+        options:
+          - environment
+          - "true"
+          - "false"
       window_start:
-        description: "Optional window start (RFC3339, e.g. 2030-04-06T08:00:00Z)"
+        description: "Override the window start for this run (RFC3339, e.g. 2030-04-06T08:00:00Z); empty keeps MAINTENANCE_WINDOW"
         required: false
         default: ""
         type: string
       window_end:
-        description: "Optional window end (RFC3339); required with window_start"
+        description: "Override the window end (RFC3339); required with window_start"
         required: false
         default: ""
         type: string
+      clear_window:
+        description: "Deploy without a window for this run, whatever MAINTENANCE_WINDOW says"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -50,6 +59,9 @@ jobs:
     defaults:
       run:
         working-directory: deploy
+    # Local execution ignores HCP workspace variables, so every input comes
+    # from here. Secrets and variables are the GitHub environment's own; see
+    # the README section "Deploying with HCP Terraform".
     env:
       TF_CLOUD_ORGANIZATION: ${{ vars.TF_CLOUD_ORGANIZATION }}
       TF_WORKSPACE: cloudflare-maintenance-${{ inputs.environment || 'dev' }}
@@ -61,16 +73,27 @@ jobs:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CF_ZONE_ID }}
       TF_VAR_worker_route: ${{ vars.WORKER_ROUTE }}
       TF_VAR_environment: ${{ inputs.environment || 'dev' }}
-      TF_VAR_enabled: ${{ inputs.enabled || false }}
-      WINDOW_START: ${{ inputs.window_start }}
-      WINDOW_END: ${{ inputs.window_end }}
+      # Durable settings: the GitHub environment's variables. A tag push
+      # deploys exactly these, so it never switches maintenance on or off.
+      ENV_ENABLED: ${{ vars.MAINTENANCE_ENABLED }}
+      ENV_WINDOW: ${{ vars.MAINTENANCE_WINDOW }}
+      ENV_ALLOWED_IPS: ${{ vars.ALLOWED_IPS }}
+      ENV_ALLOWED_REGIONS: ${{ vars.ALLOWED_REGIONS }}
+      ENV_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+      # One-run overrides from a manual dispatch.
+      INPUT_ENABLED: ${{ inputs.enabled || 'environment' }}
+      INPUT_WINDOW_START: ${{ inputs.window_start }}
+      INPUT_WINDOW_END: ${{ inputs.window_end }}
+      INPUT_CLEAR_WINDOW: ${{ inputs.clear_window || false }}
 
     steps:
-      # Fail before init so a missing setting can never fall back to local state.
-      - name: Check required configuration
+      # Fail before init so a missing setting can never fall back to local
+      # state, and before any apply so a malformed setting changes nothing.
+      - name: Resolve deploy settings
         shell: bash
         working-directory: .
         run: |
+          set -euo pipefail
           missing=()
           for name in TF_CLOUD_ORGANIZATION TF_TOKEN_app_terraform_io \
             CLOUDFLARE_API_TOKEN TF_VAR_cloudflare_account_id \
@@ -78,15 +101,50 @@ jobs:
             [[ -n "${!name}" ]] || missing+=("$name")
           done
           if (( ${#missing[@]} )); then
-            echo "::error::Not configured for HCP Terraform deploys; missing: ${missing[*]}. Set repository variable TF_CLOUD_ORGANIZATION, secret TF_API_TOKEN and the Cloudflare settings described in the README."
+            echo "::error::Not configured for HCP Terraform deploys; missing: ${missing[*]}. Set the variables and environment secrets described in the README."
             exit 1
           fi
-          if [[ -n "$WINDOW_START" || -n "$WINDOW_END" ]]; then
-            rfc3339='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
-            if [[ ! "$WINDOW_START" =~ $rfc3339 || ! "$WINDOW_END" =~ $rfc3339 ]]; then
-              echo "::error::Set both window_start and window_end as RFC3339 times, or neither."
-              exit 1
-            fi
+
+          fail() { echo "::error::$1"; exit 1; }
+          # setvar NAME VALUE: exports a TF_VAR_ for the plan. jq -c makes
+          # it one line, so nothing else can be written to GITHUB_ENV.
+          setvar() { printf 'TF_VAR_%s=%s\n' "$1" "$2" >> "$GITHUB_ENV"; }
+
+          enabled=${ENV_ENABLED:-false}
+          [[ "$INPUT_ENABLED" == environment ]] || enabled=$INPUT_ENABLED
+          [[ "$enabled" == true || "$enabled" == false ]] ||
+            fail "MAINTENANCE_ENABLED must be true or false."
+          setvar enabled "$enabled"
+
+          rfc3339='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
+          window=$ENV_WINDOW
+          if [[ "$INPUT_CLEAR_WINDOW" == true ]]; then
+            window=
+          elif [[ -n "$INPUT_WINDOW_START" || -n "$INPUT_WINDOW_END" ]]; then
+            [[ "$INPUT_WINDOW_START" =~ $rfc3339 && "$INPUT_WINDOW_END" =~ $rfc3339 ]] ||
+              fail "Set both window_start and window_end as RFC3339 times, or neither."
+            window=$(jq -cn --arg s "$INPUT_WINDOW_START" --arg e "$INPUT_WINDOW_END" '{start_time: $s, end_time: $e}')
+          fi
+          if [[ -n "$window" ]]; then
+            window=$(jq -ce 'select(type == "object" and (.start_time | type) == "string" and (.end_time | type) == "string") | {start_time, end_time}' <<<"$window") ||
+              fail 'MAINTENANCE_WINDOW must be a JSON object {"start_time": "...", "end_time": "..."}.'
+            setvar maintenance_window "$window"
+          fi
+
+          # setlist TFVAR NAME VALUE: a JSON array of strings, if set.
+          setlist() {
+            [[ -n "$3" ]] || return 0
+            local list
+            list=$(jq -ce 'select(type == "array" and all(.[]; type == "string"))' <<<"$3") ||
+              fail "$2 must be a JSON array of strings."
+            setvar "$1" "$list"
+          }
+          setlist allowed_ips ALLOWED_IPS "$ENV_ALLOWED_IPS"
+          setlist allowed_regions ALLOWED_REGIONS "$ENV_ALLOWED_REGIONS"
+
+          if [[ -n "$ENV_CONTACT_EMAIL" ]]; then
+            [[ "$ENV_CONTACT_EMAIL" != *$'\n'* ]] || fail "CONTACT_EMAIL must be one line."
+            setvar contact_email "$ENV_CONTACT_EMAIL"
           fi
 
       - name: Checkout code
@@ -99,13 +157,6 @@ jobs:
         with:
           tofu_version: 1.8.10
           tofu_wrapper: false
-
-      - name: Set maintenance window
-        if: inputs.window_start != ''
-        shell: bash
-        run: |
-          printf 'TF_VAR_maintenance_window={"start_time":"%s","end_time":"%s"}\n' \
-            "$WINDOW_START" "$WINDOW_END" >> "$GITHUB_ENV"
 
       # The committed lock file pins the provider build; never change it here.
       - name: OpenTofu Init

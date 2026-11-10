@@ -8,6 +8,17 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- CD reads every deploy input from the GitHub environment: `TF_API_TOKEN`
+  is now an environment secret (one HCP token per environment) instead of a
+  repository secret, and `MAINTENANCE_ENABLED`, `MAINTENANCE_WINDOW`,
+  `ALLOWED_IPS`, `ALLOWED_REGIONS` and `CONTACT_EMAIL` are environment
+  variables. Before, Local execution ignored the HCP workspace variables, so
+  every apply reset the allowlists and contact address to empty, and a tag
+  push turned maintenance off in `dev`. A tag push now deploys the
+  environment's variables unchanged, and **Run workflow** overrides
+  `enabled` (`environment`, `true` or `false`) and the window for one run
+  only. Move `TF_API_TOKEN` into each environment before the next deploy.
+
 - The Worker script is named by the new `script_name` variable, which
   defaults to `maintenance-page-<environment>` instead of the fixed
   `maintenance-page-worker`. Two module instances in one account (for
