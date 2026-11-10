@@ -8,6 +8,16 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- The Worker script is named by the new `script_name` variable, which
+  defaults to `maintenance-page-<environment>` instead of the fixed
+  `maintenance-page-worker`. Two module instances in one account (for
+  example one per environment) used to share that Worker: each apply
+  overwrote the other's code and bindings, and destroying one deleted the
+  Worker the others routed to. The next apply replaces the Worker and points
+  the route at the new one. To keep the old name, set
+  `script_name = "maintenance-page-worker"` in at most one instance per
+  account. Names must be 1-63 lowercase letters, digits or dashes.
+
 - The module no longer configures the Cloudflare provider and the
   `cloudflare_api_token` variable is removed. Configure the provider in the
   calling root module (for example from `CLOUDFLARE_API_TOKEN`) and drop the

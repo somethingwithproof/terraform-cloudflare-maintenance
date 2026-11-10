@@ -1,8 +1,27 @@
+locals {
+  # One Worker per module instance. Two instances in one account with the same
+  # name would overwrite each other's code and bindings, and destroying one
+  # would delete the Worker the other routes to.
+  script_name = coalesce(
+    var.script_name,
+    "maintenance-page-${trim(replace(lower(var.environment), "/[^a-z0-9]+/", "-"), "-")}",
+  )
+}
+
 # Deploy the maintenance worker
 resource "cloudflare_workers_script" "maintenance" {
   account_id  = var.cloudflare_account_id
-  script_name = "maintenance-page-worker"
+  script_name = local.script_name
   content     = file("${path.module}/worker.js")
+
+  lifecycle {
+    precondition {
+      # Checked here rather than in a variable validation so that the name
+      # derived from environment is checked by the same rule.
+      condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", local.script_name))
+      error_message = "The Worker script name must be 1-63 lowercase letters, digits or dashes, starting and ending with a letter or digit. Set script_name, or use an environment that yields such a name."
+    }
+  }
 
   # Environment variables for the worker
   bindings = [
