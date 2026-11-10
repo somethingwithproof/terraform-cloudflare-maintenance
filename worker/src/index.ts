@@ -27,7 +27,7 @@ export interface Env {
   PAGES?: string;
   /** The runtime toggle's namespace, when the module enables it. */
   MAINTENANCE_KV?: KVNamespace;
-  /** "open" (pass traffic through) or "closed" (serve the page) when KV fails. */
+  /** When KV fails: "open" applies the Terraform bindings, "closed" serves the page. */
   KV_FAILURE_MODE?: string;
   KV_CACHE_TTL?: string;
 }
@@ -85,8 +85,9 @@ export async function handleRequest(request: Request, env: Env, now: Date = new 
       title = o.title;
       message = o.message;
     }
-    active =
-      toggle.kind === "error" ? env.KV_FAILURE_MODE === "closed" : isMaintenanceActive(enabled, window, now);
+    // An unreadable or malformed override fails closed (serve the page) or
+    // open, which falls back to Terraform's settings, never to "off".
+    active = (toggle.kind === "error" && env.KV_FAILURE_MODE === "closed") || isMaintenanceActive(enabled, window, now);
   } else {
     active = isMaintenanceActive(enabled, window, now);
   }

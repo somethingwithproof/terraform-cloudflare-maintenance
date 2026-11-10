@@ -86,20 +86,49 @@ describe("with an override", () => {
 });
 
 describe("when the toggle cannot be read", () => {
-  it("passes traffic through when failing open", async () => {
-    expect((await serve({ MAINTENANCE_KV: failingKv, KV_FAILURE_MODE: "open" })).status).toBe(200);
-  });
+  // Terraform settings, from wrangler.json's MAINTENANCE_ENABLED=true default.
+  const terraform = {
+    enabled: { MAINTENANCE_ENABLED: "true" },
+    "in its window": {
+      MAINTENANCE_ENABLED: "false",
+      MAINTENANCE_WINDOW_START: "2030-04-06T08:00:00Z",
+      MAINTENANCE_WINDOW_END: "2030-04-06T10:00:00Z",
+    },
+    "off": { MAINTENANCE_ENABLED: "false" },
+    "outside its window": {
+      MAINTENANCE_ENABLED: "true",
+      MAINTENANCE_WINDOW_START: "2030-04-07T08:00:00Z",
+      MAINTENANCE_WINDOW_END: "2030-04-07T10:00:00Z",
+    },
+  } satisfies Record<string, Partial<Env>>;
 
-  it("serves the page when failing closed", async () => {
-    expect((await serve({ MAINTENANCE_KV: failingKv, KV_FAILURE_MODE: "closed", MAINTENANCE_ENABLED: "false" })).status).toBe(503);
-  });
-
-  it("treats a malformed override as a failure, not as no override", async () => {
+  it.each([
+    ["open", "enabled", 503],
+    ["open", "in its window", 503],
+    ["open", "off", 200],
+    ["open", "outside its window", 200],
+    ["closed", "enabled", 503],
+    ["closed", "in its window", 503],
+    ["closed", "off", 503],
+    ["closed", "outside its window", 503],
+  ] as const)("failing %s with Terraform %s answers %i", async (mode, settings, status) => {
+    const bindings = { ...terraform[settings], KV_FAILURE_MODE: mode };
+    expect((await serve({ ...bindings, MAINTENANCE_KV: failingKv })).status).toBe(status);
+    // A malformed override is a failure too, not "no override".
     for (const state of ["not-json", '"on"', '{"enabled": "yes"}', '{"window": {"start_time": "x"}}', '{"title": 1}']) {
       await setState(state);
-      expect((await serve({ KV_FAILURE_MODE: "open" })).status, state).toBe(200);
-      expect((await serve({ KV_FAILURE_MODE: "closed", MAINTENANCE_ENABLED: "false" })).status, state).toBe(503);
+      expect((await serve(bindings)).status, state).toBe(status);
     }
+  });
+
+  it("defaults to failing open", async () => {
+    const unset: Env = { ...env };
+    delete unset.KV_FAILURE_MODE;
+    const request = () => new Request("https://example.com/");
+    const off = { ...unset, ...terraform.off, MAINTENANCE_KV: failingKv };
+    expect((await handleRequest(request(), off, now)).status).toBe(200);
+    const enabled = { ...unset, ...terraform.enabled, MAINTENANCE_KV: failingKv };
+    expect((await handleRequest(request(), enabled, now)).status).toBe(503);
   });
 });
 
