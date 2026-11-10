@@ -14,7 +14,7 @@
     "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^10.14.0",
     "miniflare": "^4.20260730.0",
     "vitest": "^5.0.5"
