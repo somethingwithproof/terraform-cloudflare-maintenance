@@ -220,6 +220,9 @@ func TestMaintenanceModuleWithMaintenanceWindow(t *testing.T) {
 
 	terraform.InitAndApply(t, terraformOptions)
 
+	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
+	assert.Equal(t, "SCHEDULED", maintenanceStatus, "A window should report SCHEDULED")
+
 	// Validate maintenance window output
 	maintenanceWindow := terraform.OutputMap(t, terraformOptions, "maintenance_window")
 	assert.Equal(t, startTime, maintenanceWindow["start_time"], "Start time should match")
@@ -448,8 +451,7 @@ func TestMaintenanceModuleCombinedFeatures(t *testing.T) {
 
 	// Validate all outputs
 	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
-	assert.Equal(t, "ENABLED", maintenanceStatus)
-
+	assert.Equal(t, "SCHEDULED", maintenanceStatus)
 
 	allowedRegions := terraform.OutputList(t, terraformOptions, "allowed_regions")
 	assert.Len(t, allowedRegions, 2)

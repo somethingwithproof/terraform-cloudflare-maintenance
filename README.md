@@ -27,6 +27,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Input Variables](#input-variables)
 - [Outputs](#outputs)
 - [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
+- [Scheduled Maintenance Windows](#scheduled-maintenance-windows)
 - [Bypass, Rate Limiting and Zone Rulesets](#bypass-rate-limiting-and-zone-rulesets)
 - [Testing](#testing)
 - [Contributing](#contributing)
@@ -40,8 +41,7 @@ This Terraform module provides a robust, enterprise-ready maintenance mode solut
 
 - 🛡️ **Customizable Maintenance Page**: Fully customizable HTML/CSS with support for logos and branding
 - 🔒 **IP Allowlisting**: Allow IPv4/IPv6 addresses or CIDR ranges to bypass maintenance mode (e.g., for testing or monitoring). The Worker matches the `CF-Connecting-IP` header set by Cloudflare and never trusts `X-Forwarded-For`
-- ⏱️ **Scheduled Maintenance Windows**: Set specific time windows for maintenance mode to be active with RFC3339 timestamps
-- 📅 **Cron-based Scheduling**: Configure recurring maintenance windows with cron expressions
+- ⏱️ **Scheduled Maintenance Windows**: Set an RFC3339 window; the Worker serves the page only inside it, with no apply needed when it starts or ends
 - 📊 **Analytics Integration**: Built-in logging and monitoring with Cloudflare Analytics Engine
 - 🌍 **Region Bypass**: Let clients from listed countries past the maintenance page
 - 🔄 **Zero-Downtime Toggle**: Enable/disable maintenance mode without redeployment
@@ -162,17 +162,6 @@ module "maintenance" {
   # Custom styling
   custom_css = file("${path.module}/custom-styles.css")
   logo_url = "https://example.com/logo.png"
-  
-  # Cron-based scheduling (for documentation/future automation)
-  schedules = [
-    {
-      name     = "weekly-maintenance"
-      cron     = "0 2 * * SUN"  # Every Sunday at 2 AM
-      duration = "2h"
-      timezone = "America/Los_Angeles"
-      notify   = ["slack://webhook", "pagerduty://service"]
-    }
-  ]
 }
 ```
 
@@ -200,17 +189,6 @@ module "maintenance" {
   # Custom branding
   custom_css = "body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }"
   logo_url   = "https://example.com/logo.png"
-  
-  # Cron schedules for recurring maintenance
-  schedules = [
-    {
-      name     = "weekly-maintenance"
-      cron     = "0 2 * * SUN"
-      duration = "2h"
-      timezone = "America/Los_Angeles"
-      notify   = ["slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"]
-    }
-  ]
 }
 
 # Optional: Configure notifications
@@ -263,15 +241,14 @@ graph TD
 | cloudflare_account_id | Cloudflare account ID | `string` | n/a | yes |
 | cloudflare_zone_id | Cloudflare zone ID for the domain | `string` | n/a | yes |
 | worker_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
-| enabled | Toggle maintenance mode on/off | `bool` | `false` | no |
+| enabled | Serve the maintenance page until disabled; ignored while `maintenance_window` is set | `bool` | `false` | no |
 | environment | Environment name (e.g., production, staging) | `string` | `"production"` | no |
 | maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
 | maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
 | contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
 | allowed_ips | IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page | `list(string)` | `[]` | no |
 | allowed_regions | List of ISO 3166-1 alpha-2 country codes that can bypass maintenance | `list(string)` | `[]` | no |
-| maintenance_window | Scheduled maintenance window in RFC3339 format | `object({start_time=string, end_time=string})` | `null` | no |
-| schedules | List of cron-based scheduled maintenance windows | `list(object)` | `[]` | no |
+| maintenance_window | Window in RFC3339; deploys the route and serves the page only from `start_time` (inclusive) to `end_time` (exclusive) | `object({start_time=string, end_time=string})` | `null` | no |
 | custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
 | logo_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
 
@@ -285,12 +262,11 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | worker_name | The name of the deployed worker script |
 | worker_script_name | The name of the deployed worker script (alias) |
 | worker_route_pattern | Cloudflare route pattern for the maintenance page |
-| maintenance_status | Current status of the maintenance mode (ENABLED/DISABLED) |
+| maintenance_status | SCHEDULED when a window is set, otherwise ENABLED or DISABLED |
 | maintenance_enabled | Whether maintenance mode is currently enabled |
 | environment | Environment name |
 | maintenance_window | Scheduled maintenance window if configured |
 | allowed_regions | List of allowed regions that can bypass maintenance |
-| schedules | Cron-based maintenance schedules for external automation (validation checks the five-field cron shape only, not value ranges) |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
 
@@ -337,25 +313,20 @@ limiting rules are managed nowhere else. The rule matches every request
 (`expression = "true"`), so it works on any plan that supports rate limiting
 rules.
 
-## Cron Expression Reference
+## Scheduled Maintenance Windows
 
-The `schedules` variable supports standard cron expressions:
+| `enabled` | `maintenance_window` | Worker route | Maintenance page served |
+|-----------|----------------------|--------------|-------------------------|
+| `false` | unset | not deployed | never |
+| `true` | unset | deployed | always, until `enabled` is set back to `false` |
+| any | set | deployed | only from `start_time` (inclusive) to `end_time` (exclusive) |
 
-```
- ┌───────────── minute (0 - 59)
- │ ┌───────────── hour (0 - 23)
- │ │ ┌───────────── day of month (1 - 31)
- │ │ │ ┌───────────── month (1 - 12)
- │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday to Saturday)
- │ │ │ │ │
- * * * * *
-```
-
-Common examples:
-- `0 2 * * SUN` - Every Sunday at 2 AM
-- `0 3 1 * *` - First day of every month at 3 AM
-- `0 0 * * 0,6` - Every Saturday and Sunday at midnight
-- `30 4 * * 1-5` - Weekdays at 4:30 AM
+The Worker reads the window from its `MAINTENANCE_WINDOW_START` and
+`MAINTENANCE_WINDOW_END` bindings and checks the time on each request, so no
+apply is needed when the window opens or closes. After it closes, unset
+`maintenance_window` and apply to remove the route. `end_time` must be after
+`start_time`. The module schedules one window at a time; for recurring
+maintenance, have a scheduler set the next window and apply.
 
 ## Notification Integrations
 

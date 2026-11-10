@@ -20,6 +20,14 @@ variable "environment" {
   default     = "production"
 }
 
+variable "maintenance_window" {
+  description = "Maintenance window with RFC3339 start and end times"
+  type = object({
+    start_time = string
+    end_time   = string
+  })
+}
+
 variable "enable_notifications" {
   description = "Enable notifications for maintenance windows"
   type        = bool

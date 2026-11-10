@@ -8,7 +8,6 @@ This example demonstrates how to use the Terraform Cloudflare Maintenance module
 - ✅ Custom branding with CSS and logos
 - ✅ IP and region-based bypass for testing
 - ✅ Notification integrations (Slack, PagerDuty, webhooks)
-- ✅ Cron-based scheduling configuration (for reference)
 - ✅ Environment-aware configuration
 
 ## Prerequisites
@@ -34,6 +33,11 @@ cloudflare_account_id = "your-account-id"
 cloudflare_zone_id    = "your-zone-id"
 environment           = "production"
 
+maintenance_window = {
+  start_time = "2030-04-06T08:00:00Z"
+  end_time   = "2030-04-06T10:00:00Z"
+}
+
 # Optional: Enable notifications
 enable_notifications  = true
 slack_webhook_url     = "slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
@@ -50,38 +54,17 @@ terraform apply
 
 ## Scheduled Maintenance Windows
 
-The example includes a `schedules` variable that demonstrates cron-based scheduling:
+`maintenance_window` schedules a single window. With a window set, the module
+deploys the Worker route on the next apply even though `enabled` is `false`.
+The Worker then checks the time on every request: it serves the maintenance
+page from `start_time` (inclusive) to `end_time` (exclusive) and passes all
+other traffic to the origin. Clients in `allowed_ips` or `allowed_regions`
+reach the origin throughout.
 
-```hcl
-schedules = [
-  {
-    name     = "weekly-maintenance"
-    cron     = "0 2 * * SUN"        # Every Sunday at 2 AM
-    duration = "2h"                   # 2 hours duration
-    timezone = "America/Los_Angeles"
-    notify   = ["slack://webhook"]
-  }
-]
-```
-
-### Cron Expression Format
-
-```
- ┌───────────── minute (0 - 59)
- │ ┌───────────── hour (0 - 23)
- │ │ ┌───────────── day of month (1 - 31)
- │ │ │ ┌───────────── month (1 - 12)
- │ │ │ │ ┌───────────── day of week (0 - 6) (Sunday to Saturday)
- │ │ │ │ │
- * * * * *
-```
-
-### Common Cron Examples
-
-- `0 2 * * SUN` - Every Sunday at 2 AM
-- `0 3 1 * *` - First day of every month at 3 AM
-- `0 0 * * 0,6` - Every Saturday and Sunday at midnight
-- `30 4 * * 1-5` - Weekdays at 4:30 AM
+After the window ends, remove `maintenance_window` (or set it to `null`) and
+apply again to delete the route. Until then the Worker passes every request
+through. For recurring maintenance, have a scheduler (for example a CI job)
+set the next window and apply.
 
 ## Notifications
 
@@ -120,7 +103,7 @@ terraform destroy
 
 ## Notes
 
-- The `schedules` variable is for documentation and future automation
-- Currently, maintenance windows are activated manually via the `enabled` variable
-- For CI/CD integration, consider using Terraform Cloud run triggers
-- Time-based windows use the `maintenance_window` variable with RFC3339 timestamps
+- Set `enabled = true` without a window to serve the page immediately until you
+  disable it again.
+- Notifications are sent when `tofu apply` runs, not when the window starts or
+  ends.

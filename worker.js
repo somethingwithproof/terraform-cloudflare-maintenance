@@ -5,16 +5,7 @@ addEventListener("fetch", (event) => {
 });
 
 async function handleRequest(request) {
-  // Check if we're in a scheduled maintenance window
-  const now = new Date();
-  const inMaintenanceWindow = checkMaintenanceWindow(now);
-
-  // First, check if we're actually in maintenance mode
-  // If not and not in a maintenance window, let traffic through
-  if (
-    (!MAINTENANCE_ENABLED || MAINTENANCE_ENABLED === "false") &&
-    !inMaintenanceWindow
-  ) {
+  if (!isMaintenanceActive(new Date())) {
     return fetch(request);
   }
 
@@ -107,40 +98,36 @@ async function handleRequest(request) {
   });
 }
 
-function checkMaintenanceWindow(now) {
-  // Check if we're within a scheduled maintenance window
-  const startTime = MAINTENANCE_WINDOW_START;
-  const endTime = MAINTENANCE_WINDOW_END;
-
-  if (!startTime || !endTime) {
-    return false;
+// With a scheduled window the page is served only from its start (inclusive)
+// to its end (exclusive), whatever MAINTENANCE_ENABLED says. Without a window,
+// MAINTENANCE_ENABLED alone decides.
+function isMaintenanceActive(now) {
+  const window = maintenanceWindow();
+  if (window) {
+    return now >= window.start && now < window.end;
   }
+  return MAINTENANCE_ENABLED === "true";
+}
 
-  try {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    return now >= start && now <= end;
-  } catch {
-    // Invalid dates, ignore the maintenance window
-    return false;
+// The scheduled window from the bindings, or null if none is set.
+function maintenanceWindow() {
+  if (!MAINTENANCE_WINDOW_START || !MAINTENANCE_WINDOW_END) {
+    return null;
   }
+  const start = new Date(MAINTENANCE_WINDOW_START);
+  const end = new Date(MAINTENANCE_WINDOW_END);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return null;
+  }
+  return { start, end };
 }
 
 function getMaintenanceWindowMessage() {
-  const startTime = MAINTENANCE_WINDOW_START;
-  const endTime = MAINTENANCE_WINDOW_END;
-
-  if (!startTime || !endTime) {
+  const window = maintenanceWindow();
+  if (!window) {
     return "";
   }
-
-  try {
-    const end = new Date(endTime);
-    if (Number.isNaN(end.getTime())) return "";
-    return `<p style="font-size: 0.9rem; color: #888;">Expected completion: ${end.toUTCString()}</p>`;
-  } catch {
-    return "";
-  }
+  return `<p style="font-size: 0.9rem; color: #888;">Expected completion: ${window.end.toUTCString()}</p>`;
 }
 
 function isValidHttpsUrl(url) {

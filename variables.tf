@@ -17,7 +17,7 @@ variable "cloudflare_zone_id" {
 }
 
 variable "enabled" {
-  description = "Enable or disable maintenance mode"
+  description = "Serve the maintenance page until disabled. Ignored while maintenance_window is set, which then decides when the page is served."
   type        = bool
   default     = false
 }
@@ -67,7 +67,7 @@ variable "environment" {
 }
 
 variable "maintenance_window" {
-  description = "Scheduled maintenance window with start and end times in RFC3339 format"
+  description = "Scheduled maintenance window with RFC3339 start and end times. When set, the Worker route is deployed and the page is served only from start_time (inclusive) to end_time (exclusive), whether or not enabled is true."
   type = object({
     start_time = string
     end_time   = string
@@ -81,26 +81,10 @@ variable "maintenance_window" {
     )
     error_message = "Maintenance window times must be in valid RFC3339 format (e.g., 2025-04-06T08:00:00Z)"
   }
-}
-
-variable "schedules" {
-  description = "List of cron-based scheduled maintenance windows"
-  type = list(object({
-    name     = string
-    cron     = string
-    duration = string
-    timezone = string
-    notify   = optional(list(string), [])
-  }))
-  default = []
-
   validation {
-    condition = alltrue([
-      for schedule in var.schedules :
-      can(regex("^([0-9*,/-]+|\\*) ([0-9*,/-]+|\\*) ([0-9*,/-]+|\\*) ([0-9*,/-]+|\\*) ([0-9*,/-]+|[A-Z]{3}|\\*)$", schedule.cron)) &&
-      length(split(" ", schedule.cron)) == 5
-    ])
-    error_message = "Cron expressions must be in valid 5-field format: 'minute hour day month weekday' (e.g., '0 2 * * SUN', '*/15 * * * *')"
+    # try() also covers a null window, where the attribute access fails.
+    condition     = try(timecmp(var.maintenance_window.start_time, var.maintenance_window.end_time) < 0, var.maintenance_window == null)
+    error_message = "Maintenance window end_time must be after start_time."
   }
 }
 

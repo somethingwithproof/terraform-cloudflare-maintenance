@@ -7,6 +7,12 @@ cloudflare_zone_id    = "your-cloudflare-zone-id"
 
 environment = "production"
 
+# The page is served from start_time (inclusive) to end_time (exclusive).
+maintenance_window = {
+  start_time = "2030-04-06T08:00:00Z"
+  end_time   = "2030-04-06T10:00:00Z"
+}
+
 # Optional: Enable notifications
 enable_notifications = false
 
