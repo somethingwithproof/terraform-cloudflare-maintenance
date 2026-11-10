@@ -30,11 +30,18 @@ export function isValidHttpsUrl(url: string | null | undefined): boolean {
   }
 }
 
-/** The address if it looks like one and contains no markup, otherwise "". */
+/**
+ * The address if it looks like one (local@domain.tld) and contains no markup,
+ * otherwise "". Checked without a backtracking regex, because the contact
+ * address is a binding of any length.
+ */
 export function sanitizeEmail(email: string | null | undefined): string {
-  const emailRegex = /^[^\s@<>'"]+@[^\s@<>'"]+\.[^\s@<>'"]+$/;
-  if (!email || !emailRegex.test(email)) return "";
-  return email.replace(/[<>'"&]/g, "");
+  if (!email || /[\s<>'"]/.test(email)) return "";
+  const at = email.indexOf("@");
+  if (at <= 0 || at !== email.lastIndexOf("@")) return "";
+  // A dot with something on both sides, somewhere in the domain.
+  if (!email.slice(at + 2, -1).includes(".")) return "";
+  return email.replace(/&/g, "");
 }
 
 export interface PageContent {
