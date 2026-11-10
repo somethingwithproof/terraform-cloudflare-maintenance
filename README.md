@@ -78,6 +78,7 @@ provider "cloudflare" {} # reads CLOUDFLARE_API_TOKEN
   - Account.Workers Scripts:Edit
   - Zone.Workers Routes:Edit
   - Permission to edit the zone's rate limiting rules (only if `rate_limit.enabled` is true)
+  - Account.Workers KV Storage:Edit (only if `runtime_toggle.enabled` is true)
 
 ## Quick Start
 
@@ -256,6 +257,7 @@ graph TD
 | retry_after_seconds | `Retry-After` outside a window; inside one it is the time left | `number` | `3600` | no |
 | status_path | Path of the JSON status endpoint; `""` disables it | `string` | `"/__maintenance/status"` | no |
 | pages | Title and message overrides per hostname and path prefix | `list(object({host, path_prefix, title, message}))` | `[]` | no |
+| runtime_toggle | Switch maintenance at runtime through Workers KV; see [Runtime Toggle](#runtime-toggle) | `object({enabled, failure_mode, cache_ttl_seconds})` | `{enabled=false, failure_mode="open", cache_ttl_seconds=60}` | no |
 
 For a complete list of variables, see [variables.tf](variables.tf).
 
@@ -307,6 +309,9 @@ Set up once:
 | | `MAINTENANCE_WINDOW` | JSON `{"start_time": "...", "end_time": "..."}` in RFC3339, or unset |
 | | `ALLOWED_IPS`, `ALLOWED_REGIONS` | JSON arrays of strings, for example `["192.0.2.0/24"]` and `["US"]`; unset means none |
 | | `CONTACT_EMAIL` | Address shown on the page; unset means none |
+| | `RUNTIME_TOGGLE` | `true` to create the runtime toggle; unset means `false` |
+| | `KV_NAMESPACE_ID` | For **Toggle maintenance**: the `runtime_toggle_namespace_id` output of the first deploy with `RUNTIME_TOGGLE=true` |
+| GitHub environments (secrets, optional) | `MAINTENANCE_NOTIFY_URL` | Notification target for **Toggle maintenance**, in the notifications module's URL format |
 
 Each environment deploys its own Worker, `maintenance-page-<environment>`, so
 the three workspaces can share one Cloudflare account without overwriting or
@@ -390,6 +395,51 @@ apply is needed when the window opens or closes. After it closes, unset
 `maintenance_window` and apply to remove the route. `end_time` must be after
 `start_time`. The module schedules one window at a time; for recurring
 maintenance, have a scheduler set the next window and apply.
+
+## Runtime Toggle
+
+An apply takes minutes and needs Terraform credentials. With
+`runtime_toggle = { enabled = true }` the module also creates a Workers KV
+namespace (output `runtime_toggle_namespace_id`) that the Worker reads on
+each request, so maintenance can be switched in about a minute:
+
+```bash
+export CLOUDFLARE_API_TOKEN=...   # Workers KV Storage:Edit; read from your secret store
+export CF_ACCOUNT_ID=... KV_NAMESPACE_ID=$(tofu output -raw runtime_toggle_namespace_id)
+scripts/maintenance on --message "Database failover, back in 10 minutes"
+scripts/maintenance schedule 2030-04-06T08:00:00Z 2030-04-06T10:00:00Z
+scripts/maintenance off      # pass traffic through now, even inside a Terraform window
+scripts/maintenance clear    # remove the override; Terraform's settings apply again
+scripts/maintenance status
+```
+
+The **Toggle maintenance** workflow runs the same script for a GitHub
+environment, with that environment's `CF_API_TOKEN`, `CF_ACCOUNT_ID` and
+`KV_NAMESPACE_ID`.
+
+- **Precedence.** The override is one KV value. Each field it sets
+  (`enabled`, `window`, `title`, `message`) replaces the Terraform value, and
+  a title or message set there replaces `pages` too. Terraform never writes
+  the value, so an apply does not undo a toggle; `clear` does.
+- **Propagation.** Each edge location caches the value for
+  `cache_ttl_seconds` (default 60, minimum 30) and KV takes up to about a
+  minute to propagate a write, so allow up to two minutes.
+- **Failures.** If KV cannot be read or holds a malformed value,
+  `failure_mode = "open"` (the default) passes traffic to the origin and
+  `"closed"` serves the maintenance page. A missing value is not a failure:
+  Terraform's settings apply.
+- **Notifications.** With `NOTIFY_URL` (or the `MAINTENANCE_NOTIFY_URL`
+  environment secret) set, `on` triggers, `off` and `clear` resolve and
+  `schedule` informs Slack and webhooks without paging. The PagerDuty dedup
+  key is `terraform-cloudflare-maintenance/<environment>/<NOTIFY_SCHEDULE>`
+  (default schedule `runtime-toggle`); set `NOTIFY_SCHEDULE` to a schedule
+  name of the notifications module to share its incident.
+- **Cost and latency.** The route stays deployed while the toggle is
+  enabled, so the Worker runs on every request to the route even when
+  maintenance is off: every request counts toward Workers requests billing,
+  adds the Worker's start-up time (typically a few milliseconds) and makes a
+  KV read, served from the edge cache within `cache_ttl_seconds`. Without the
+  toggle, the route exists only while `enabled` or a window is set.
 
 ## HTTP Responses
 

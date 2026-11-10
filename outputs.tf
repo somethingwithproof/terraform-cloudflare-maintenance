@@ -28,8 +28,13 @@ output "maintenance_enabled" {
   value       = var.enabled
 }
 
+output "runtime_toggle_namespace_id" {
+  description = "ID of the runtime toggle's Workers KV namespace, for scripts/maintenance (KV_NAMESPACE_ID); null unless runtime_toggle.enabled"
+  value       = one(cloudflare_workers_kv_namespace.toggle[*].id)
+}
+
 output "maintenance_status" {
-  description = "SCHEDULED when a maintenance window is set, otherwise ENABLED or DISABLED"
+  description = "SCHEDULED when a maintenance window is set, otherwise ENABLED or DISABLED, as configured in Terraform. A runtime toggle override is not reflected; the status endpoint reports the live state."
   value       = var.maintenance_window != null ? "SCHEDULED" : var.enabled ? "ENABLED" : "DISABLED"
 
   # The notifications module consumes this output. Without the dependency it

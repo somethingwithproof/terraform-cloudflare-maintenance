@@ -81,6 +81,7 @@ jobs:
       ENV_ALLOWED_IPS: ${{ vars.ALLOWED_IPS }}
       ENV_ALLOWED_REGIONS: ${{ vars.ALLOWED_REGIONS }}
       ENV_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
+      ENV_RUNTIME_TOGGLE: ${{ vars.RUNTIME_TOGGLE }}
       # One-run overrides from a manual dispatch.
       INPUT_ENABLED: ${{ inputs.enabled || 'environment' }}
       INPUT_WINDOW_START: ${{ inputs.window_start }}
@@ -142,6 +143,11 @@ jobs:
           }
           setlist allowed_ips ALLOWED_IPS "$ENV_ALLOWED_IPS"
           setlist allowed_regions ALLOWED_REGIONS "$ENV_ALLOWED_REGIONS"
+
+          runtime_toggle=${ENV_RUNTIME_TOGGLE:-false}
+          [[ "$runtime_toggle" == true || "$runtime_toggle" == false ]] ||
+            fail "RUNTIME_TOGGLE must be true or false."
+          setvar runtime_toggle "$runtime_toggle"
 
           if [[ -n "$ENV_CONTACT_EMAIL" ]]; then
             [[ "$ENV_CONTACT_EMAIL" != *$'\n'* ]] || fail "CONTACT_EMAIL must be one line."

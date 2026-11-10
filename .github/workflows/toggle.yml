@@ -1,0 +1,98 @@
+name: Toggle maintenance
+
+# Switches the maintenance page through the module's runtime toggle
+# (runtime_toggle.enabled = true) with scripts/maintenance. No Terraform
+# runs, so the change reaches the edge within about a minute and the next
+# deploy does not undo it. "clear" hands control back to Terraform.
+
+on:
+  # checkov:skip=CKV_GHA_7: an operations task, not a build; the inputs choose what to switch and are passed to the script as arguments
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      command:
+        description: "on, off, schedule (needs the window), clear (back to Terraform) or status"
+        required: true
+        default: "status"
+        type: choice
+        options:
+          - status
+          - "on"
+          - "off"
+          - schedule
+          - clear
+      window_start:
+        description: "schedule: start, UTC (e.g. 2030-04-06T08:00:00Z)"
+        required: false
+        default: ""
+        type: string
+      window_end:
+        description: "schedule: end, UTC"
+        required: false
+        default: ""
+        type: string
+      title:
+        description: "on or schedule: page title for this override (empty keeps Terraform's)"
+        required: false
+        default: ""
+        type: string
+      message:
+        description: "on or schedule: page message for this override (empty keeps Terraform's)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  toggle:
+    name: ${{ inputs.command }} in ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    # One toggle per environment at a time, applied in the order requested.
+    concurrency:
+      group: toggle-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
+      NOTIFY_URL: ${{ secrets.MAINTENANCE_NOTIFY_URL }}
+      NOTIFY_ENVIRONMENT: ${{ inputs.environment }}
+      COMMAND: ${{ inputs.command }}
+      WINDOW_START: ${{ inputs.window_start }}
+      WINDOW_END: ${{ inputs.window_end }}
+      TITLE: ${{ inputs.title }}
+      MESSAGE: ${{ inputs.message }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
+        with:
+          persist-credentials: false
+
+      - name: Run scripts/maintenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$KV_NAMESPACE_ID" ]]; then
+            echo "::error::Set the environment variable KV_NAMESPACE_ID to the module's runtime_toggle_namespace_id output (deploy with runtime_toggle.enabled = true)."
+            exit 1
+          fi
+          args=("$COMMAND")
+          if [[ "$COMMAND" == schedule ]]; then
+            args+=("$WINDOW_START" "$WINDOW_END")
+          fi
+          if [[ "$COMMAND" == on || "$COMMAND" == schedule ]]; then
+            [[ -z "$TITLE" ]] || args+=(--title "$TITLE")
+            [[ -z "$MESSAGE" ]] || args+=(--message "$MESSAGE")
+          fi
+          scripts/maintenance "${args[@]}"

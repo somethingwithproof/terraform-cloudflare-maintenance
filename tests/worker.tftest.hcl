@@ -39,6 +39,8 @@ run "bindings_carry_page_settings" {
       RETRY_AFTER              = "600"
       STATUS_PATH              = "/__maintenance/status"
       PAGES                    = "[]"
+      KV_FAILURE_MODE          = "open"
+      KV_CACHE_TTL             = "60"
       ALLOWED_IPS              = jsonencode(["192.0.2.1", "198.51.100.0/24"])
       ALLOWED_REGIONS          = jsonencode(["US", "CA"])
     }
@@ -385,4 +387,80 @@ run "reject_duplicate_pages" {
   }
 
   expect_failures = [var.pages]
+}
+
+run "runtime_toggle_is_off_by_default" {
+  command = plan
+
+  assert {
+    condition     = length(cloudflare_workers_kv_namespace.toggle) == 0
+    error_message = "No KV namespace should be created unless runtime_toggle.enabled"
+  }
+
+  assert {
+    condition     = !contains([for b in cloudflare_workers_script.maintenance.bindings : b.name], "MAINTENANCE_KV")
+    error_message = "The Worker should have no MAINTENANCE_KV binding unless runtime_toggle.enabled"
+  }
+}
+
+run "runtime_toggle_binds_a_namespace_and_keeps_the_route" {
+  command = apply
+
+  variables {
+    enabled = false
+    runtime_toggle = {
+      enabled           = true
+      failure_mode      = "closed"
+      cache_ttl_seconds = 30
+    }
+  }
+
+  assert {
+    condition     = cloudflare_workers_kv_namespace.toggle[0].title == "maintenance-page-test-toggle"
+    error_message = "The namespace should be named after the Worker"
+  }
+
+  assert {
+    condition = one([
+      for b in cloudflare_workers_script.maintenance.bindings : b.namespace_id if b.name == "MAINTENANCE_KV" && b.type == "kv_namespace"
+    ]) == cloudflare_workers_kv_namespace.toggle[0].id
+    error_message = "MAINTENANCE_KV should bind the toggle namespace"
+  }
+
+  assert {
+    condition = {
+      for b in cloudflare_workers_script.maintenance.bindings : b.name => b.text if contains(["KV_FAILURE_MODE", "KV_CACHE_TTL"], b.name)
+    } == { KV_FAILURE_MODE = "closed", KV_CACHE_TTL = "30" }
+    error_message = "The failure mode and cache TTL should reach the Worker"
+  }
+
+  assert {
+    condition     = length(cloudflare_workers_route.maintenance) == 1
+    error_message = "The route should stay deployed so the toggle can turn maintenance on"
+  }
+
+  assert {
+    condition     = output.runtime_toggle_namespace_id == cloudflare_workers_kv_namespace.toggle[0].id
+    error_message = "runtime_toggle_namespace_id should be the namespace ID"
+  }
+}
+
+run "reject_unknown_failure_mode" {
+  command = plan
+
+  variables {
+    runtime_toggle = { enabled = true, failure_mode = "fallback" }
+  }
+
+  expect_failures = [var.runtime_toggle]
+}
+
+run "reject_cache_ttl_below_the_kv_minimum" {
+  command = plan
+
+  variables {
+    runtime_toggle = { enabled = true, cache_ttl_seconds = 10 }
+  }
+
+  expect_failures = [var.runtime_toggle]
 }
