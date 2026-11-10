@@ -159,10 +159,11 @@ module "maintenance" {
   # Allow specific regions to bypass maintenance
   allowed_regions = ["US", "CA"]
   
-  # Schedule maintenance window
+  # Set these to your own maintenance window before applying; outside it
+  # the page is not served, even with enabled = true.
   maintenance_window = {
-    start_time = "2025-04-06T08:00:00Z"
-    end_time = "2025-04-06T10:00:00Z"
+    start_time = "2030-04-06T08:00:00Z"
+    end_time = "2030-04-06T10:00:00Z"
   }
   
   # Custom styling
@@ -185,10 +186,11 @@ module "maintenance" {
   environment = "production"
   enabled     = true
   
-  # Time-based maintenance window
+  # Set these to your own maintenance window before applying; outside it
+  # the page is not served, even with enabled = true.
   maintenance_window = {
-    start_time = "2025-04-06T08:00:00Z"
-    end_time   = "2025-04-06T10:00:00Z"
+    start_time = "2030-04-06T08:00:00Z"
+    end_time   = "2030-04-06T10:00:00Z"
   }
   
   # Custom branding

@@ -43,7 +43,7 @@ variable "maintenance_start_time" {
 
   validation {
     condition     = can(timeadd(var.maintenance_start_time, "0s"))
-    error_message = "Maintenance start time must be in RFC3339 format (e.g., 2025-04-06T08:00:00Z)."
+    error_message = "Maintenance start time must be in RFC3339 format (e.g., 2030-04-06T08:00:00Z)."
   }
 }
 
@@ -53,7 +53,7 @@ variable "maintenance_end_time" {
 
   validation {
     condition     = can(timeadd(var.maintenance_end_time, "0s"))
-    error_message = "Maintenance end time must be in RFC3339 format (e.g., 2025-04-06T10:00:00Z)."
+    error_message = "Maintenance end time must be in RFC3339 format (e.g., 2030-04-06T10:00:00Z)."
   }
 }
 
