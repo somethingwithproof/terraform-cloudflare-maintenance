@@ -117,6 +117,17 @@ variable "logo_url" {
   default     = ""
 }
 
+variable "retry_after_seconds" {
+  description = "Retry-After the maintenance page sends outside a scheduled window, in seconds. Inside a window it is the time left until end_time."
+  type        = number
+  default     = 3600
+
+  validation {
+    condition     = var.retry_after_seconds >= 1 && var.retry_after_seconds <= 86400 && floor(var.retry_after_seconds) == var.retry_after_seconds
+    error_message = "retry_after_seconds must be a whole number of seconds from 1 to 86400."
+  }
+}
+
 variable "allowed_regions" {
   description = "List of country codes (ISO 3166-1 alpha-2) that can bypass the maintenance page"
   type        = list(string)

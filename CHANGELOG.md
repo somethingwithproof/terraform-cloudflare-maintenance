@@ -93,11 +93,21 @@ All notable changes to this module are documented here. The format follows
   darwin_amd64 and CI and CD initialize with `-lockfile=readonly`, so CD
   can no longer pick up an unreviewed provider build.
 
+- Custom CSS is now escaped so that it cannot end the page's `<style>`
+  element in any spelling, and the page's Content Security Policy adds
+  `form-action 'none'`, `base-uri 'none'` and `frame-ancestors 'none'`.
+- The logo URL is HTML-escaped for its attribute instead of having
+  characters such as `&` removed, which broke URLs with query strings.
+
 ### Fixed
 
 - The `maintenance_status` and `maintenance_window` outputs depend on the
   Worker script and route, so notifications that consume them are sent only
   after the Cloudflare changes in the same apply succeed.
+
+- `Retry-After` counts down to the end of the window while one is open
+  instead of always saying an hour. Outside a window it is the new
+  `retry_after_seconds` input (default 3600).
 
 - `allowed_ips` validation now rejects the entries the Worker ignores: IPv4
   octets with leading zeros (`010.0.0.1`) and IPv4-mapped IPv6 ranges with a

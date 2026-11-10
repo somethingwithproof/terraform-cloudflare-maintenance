@@ -73,6 +73,11 @@ resource "cloudflare_workers_script" "maintenance" {
       text = var.maintenance_window != null ? var.maintenance_window.end_time : ""
     },
     {
+      name = "RETRY_AFTER"
+      type = "plain_text"
+      text = tostring(var.retry_after_seconds)
+    },
+    {
       name = "ALLOWED_IPS"
       type = "secret_text"
       text = jsonencode(var.allowed_ips)

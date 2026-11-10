@@ -18,7 +18,8 @@ describe("Worker Integration Tests", () => {
     LOGO_URL: "",
     MAINTENANCE_WINDOW_START: "",
     MAINTENANCE_WINDOW_END: "",
-    ALLOWED_IPS: "[]",
+    RETRY_AFTER: "3600",
+  ALLOWED_IPS: "[]",
     ALLOWED_REGIONS: "[]",
   };
 
