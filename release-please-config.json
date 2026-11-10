@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.11.2/schemas/config.json",
+  "release-type": "terraform-module",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "bump-minor-pre-major": false,
+  "last-release-sha": "449a68f0f37a4cfa33f799588585f3d8261d8ae4",
+  "signoff": "Thomas Vincent <thomasvincent@gmail.com>",
+  "packages": {
+    ".": {
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        { "type": "generic", "path": "README.md" },
+        { "type": "generic", "path": "modules/notifications/README.md" }
+      ]
+    }
+  }
+}
