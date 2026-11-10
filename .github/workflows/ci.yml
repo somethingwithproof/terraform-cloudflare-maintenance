@@ -32,7 +32,9 @@ jobs:
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          tofu_version: 1.8.0
+          tofu_version: 1.8.10
+          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          tofu_wrapper: false
 
       - name: OpenTofu Init
         run: tofu init -backend=false
@@ -88,21 +90,21 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: worker/package-lock.json
+          cache-dependency-path: tests/package-lock.json
 
-      - name: Clean and Install dependencies
-        run: |
-          cd worker
-          rm -rf node_modules package-lock.json
-          npm install
+      # worker.js lives at the repo root; its Vitest suites live in tests/.
+      - name: Install dependencies
+        working-directory: tests
+        run: npm ci --ignore-scripts
 
       - name: Run tests
-        run: cd worker && npm test -- src/test-utils.test.ts
+        working-directory: tests
+        run: npm run test:coverage
 
       - name: Upload test coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
-          directory: ./worker/coverage/
+          directory: ./tests/coverage/
           flags: worker
           fail_ci_if_error: false
 
@@ -119,16 +121,13 @@ jobs:
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:
-          tofu_version: 1.8.0
+          tofu_version: 1.8.10
+          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          tofu_wrapper: false
 
       - name: OpenTofu Init
         run: tofu init -backend=false
 
+      # The test files use mock_provider, so no Cloudflare API calls or credentials.
       - name: Run OpenTofu Tests
-        run: |
-          tofu test -filter tests/basic.tftest.hcl || echo "Basic tests check skipped in CI"
-          tofu test -filter tests/worker.tftest.hcl || echo "Worker tests check skipped in CI"
-        env:
-          TF_VAR_cloudflare_api_token: ${{ secrets.TEST_CF_API_TOKEN }}
-          TF_VAR_cloudflare_account_id: ${{ secrets.TEST_CF_ACCOUNT_ID }}
-          TF_VAR_cloudflare_zone_id: ${{ secrets.TEST_CF_ZONE_ID }}
+        run: tofu test

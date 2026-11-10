@@ -2,8 +2,9 @@
 
 ## CodeQL Configuration
 
-The custom `codeql-analysis.yml` workflow has been disabled because this repository is using GitHub's default CodeQL setup. 
-
-Having both the default CodeQL setup and a custom workflow causes conflicts during analysis. The default setup is preferred as it's maintained by GitHub and includes the latest security rules.
-
-If you need to re-enable the custom workflow, rename `codeql-analysis.yml.disabled` back to `codeql-analysis.yml` and ensure the default CodeQL setup is disabled in the repository settings.
+CodeQL runs through the advanced `codeql.yml` workflow (Go and
+JavaScript/TypeScript), matching the owner's other repositories. GitHub's
+default code scanning setup must stay disabled in the repository settings:
+when both are enabled, GitHub rejects the workflow's SARIF uploads with
+"CodeQL analyses from advanced configurations cannot be processed when the
+default setup is enabled".

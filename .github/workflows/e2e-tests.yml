@@ -23,7 +23,7 @@ concurrency:
 env:
   GO_VERSION: "1.22"
   NODE_VERSION: "24"
-  TOFU_VERSION: "1.8.0"
+  TOFU_VERSION: "1.8.10"
 
 jobs:
   # Unit tests for worker JavaScript
@@ -120,13 +120,15 @@ jobs:
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
+          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          tofu_wrapper: false
 
       - name: Initialize OpenTofu
         run: tofu init -backend=false
 
+      # The test files use mock_provider, so no Cloudflare API calls or credentials.
       - name: Run Terraform test - ${{ matrix.test-file }}
         run: tofu test -filter=tests/${{ matrix.test-file }}
-        continue-on-error: true
 
   # Go-based Terratest E2E tests
   terratest:
@@ -157,6 +159,8 @@ jobs:
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
+          # The wrapper is a Node script; the self-hosted runners have no node on PATH.
+          tofu_wrapper: false
 
       - name: Download Go dependencies
         run: go mod download

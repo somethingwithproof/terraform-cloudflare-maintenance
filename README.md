@@ -26,6 +26,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Architecture](#architecture)
 - [Input Variables](#input-variables)
 - [Outputs](#outputs)
+- [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -292,8 +293,36 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | dns_record_id | ID of the DNS record for the maintenance status page |
 | ruleset_id | ID of the firewall ruleset for IP/region allowlisting |
 | allowed_regions | List of allowed regions that can bypass maintenance |
+| schedules | Cron-based maintenance schedules for external automation (validation checks the five-field cron shape only, not value ranges) |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
+
+## Upgrading from Cloudflare Provider v4 State
+
+The module uses the Cloudflare provider v5 schema. Provider v5 renamed the
+status-page DNS record resource from `cloudflare_record` to
+`cloudflare_dns_record`, so state written by a v4-era release of this module
+must be re-associated before the first v5 plan. Follow Cloudflare's
+[version 5 migration guide](https://github.com/cloudflare/terraform-provider-cloudflare/blob/main/docs/guides/version-5-migration.md)
+for the prerequisites:
+
+1. Back up the state first: `tofu state pull > terraform.tfstate.backup`.
+2. If the state was written by a v4 provider older than v4.52.5, apply once
+   with v4.52.5 before moving to v5.
+3. Use provider v5.19 or later for the migration. Earlier v5 releases lack the
+   automatic v4 state upgraders that `cloudflare_workers_script`,
+   `cloudflare_workers_route` and `cloudflare_ruleset` rely on; those resources
+   keep their types and are upgraded during the next plan.
+
+Then re-associate the DNS record. Replace `module.maintenance` with your module
+address and keep the zone and record IDs from your v4 state:
+
+```bash
+tofu state rm 'module.maintenance.cloudflare_record.maintenance_status[0]'
+tofu import 'module.maintenance.cloudflare_dns_record.maintenance_status[0]' '<zone_id>/<dns_record_id>'
+```
+
+Review the next `tofu plan` before applying it.
 
 ## Cron Expression Reference
 

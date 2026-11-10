@@ -5,12 +5,12 @@ output "worker_id" {
 
 output "worker_name" {
   description = "The name of the deployed worker script"
-  value       = cloudflare_workers_script.maintenance.name
+  value       = cloudflare_workers_script.maintenance.script_name
 }
 
 output "worker_script_name" {
   description = "The name of the deployed worker script (alias for compatibility)"
-  value       = cloudflare_workers_script.maintenance.name
+  value       = cloudflare_workers_script.maintenance.script_name
 }
 
 output "worker_route" {
@@ -48,7 +48,7 @@ locals {
 
 output "dns_record_id" {
   description = "ID of the DNS record for the maintenance status page"
-  value       = var.enabled && length(cloudflare_record.maintenance_status) > 0 ? cloudflare_record.maintenance_status[0].id : "No DNS record created"
+  value       = var.enabled && length(cloudflare_dns_record.maintenance_status) > 0 ? cloudflare_dns_record.maintenance_status[0].id : "No DNS record created"
 }
 
 output "ruleset_id" {
@@ -79,4 +79,9 @@ output "rate_limit_ruleset_id" {
 output "rate_limit_enabled" {
   description = "Whether rate limiting is currently enabled"
   value       = var.rate_limit.enabled
+}
+
+output "schedules" {
+  description = "Cron-based maintenance schedules for external automation that toggles maintenance mode (validation checks the cron field shape only)"
+  value       = var.schedules
 }

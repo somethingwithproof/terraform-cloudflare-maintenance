@@ -52,7 +52,7 @@ updates:
           - "patch"
 
   # =============================================
-  # npm (tests/package.json; no lockfile is tracked)
+  # npm (tests/package.json and tests/package-lock.json)
   # =============================================
   - package-ecosystem: "npm"
     cooldown:
