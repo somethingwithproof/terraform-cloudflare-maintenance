@@ -1,35 +1,36 @@
 /**
- * Unit tests for the Cloudflare Worker maintenance page
- * Tests all functions and edge cases without requiring actual Cloudflare deployment
+ * Unit tests for the Cloudflare maintenance Worker.
+ *
+ * Every test runs the shipped ../../worker.js in a fresh VM context, so the
+ * functions and the request handler under test are the real ones. Bindings
+ * that Cloudflare injects as globals are supplied per test via loadWorker().
  */
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { runInNewContext } from "node:vm";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
-// Mock global variables that would be injected by Cloudflare
-const mockGlobals = {
+const workerUrl = new URL("../../worker.js", import.meta.url);
+const workerSource = readFileSync(workerUrl, "utf8");
+
+const defaultBindings = {
   MAINTENANCE_ENABLED: "true",
   MAINTENANCE_TITLE: "Test Maintenance",
   MAINTENANCE_MESSAGE: "We are under maintenance",
   CONTACT_EMAIL: "test@example.com",
-  CUSTOM_CSS: "body { background: blue; }",
-  LOGO_URL: "https://example.com/logo.png",
+  CUSTOM_CSS: "",
+  LOGO_URL: "",
   MAINTENANCE_WINDOW_START: "",
   MAINTENANCE_WINDOW_END: "",
   ALLOWED_IPS: "[]",
   ALLOWED_REGIONS: "[]",
 };
 
-const workerSource = readFileSync(
-  new URL("../../worker.js", import.meta.url),
-  "utf8",
-);
-function loadWorker(overrides = {}) {
+function loadWorker(bindings = {}) {
   const context = {
-    ...mockGlobals,
-    ...overrides,
+    ...defaultBindings,
+    ...bindings,
     URL,
     Response,
     Date,
@@ -37,572 +38,292 @@ function loadWorker(overrides = {}) {
     fetch: vi.fn(async () => new Response("Origin response")),
   };
   runInNewContext(workerSource, context, {
-    filename: fileURLToPath(new URL("../../worker.js", import.meta.url)),
+    filename: fileURLToPath(workerUrl),
   });
   return context;
 }
 
-// Helper to set global variables
-function setGlobals(overrides = {}) {
-  const globals = { ...mockGlobals, ...overrides };
-  Object.keys(globals).forEach((key) => {
-    global[key] = globals[key];
-  });
+function request({ ip, country } = {}) {
+  const req = new Request("https://example.com/");
+  if (ip) req.headers.set("CF-Connecting-IP", ip);
+  if (country !== undefined) req.cf = { country };
+  return req;
 }
 
-// Helper to create mock request
-function createMockRequest(options = {}) {
-  const headers = new Map([["CF-Connecting-IP", options.ip || "1.2.3.4"]]);
-
-  return {
-    headers: {
-      get: (name) => headers.get(name) || null,
-    },
-    cf: {
-      country: options.country || "US",
-    },
-    url: options.url || "https://example.com/",
-  };
+async function maintenancePage(bindings = {}) {
+  const response = await loadWorker(bindings).handleRequest(request());
+  expect(response.status).toBe(503);
+  return response.text();
 }
-
-// Mock fetch function
-global.fetch = vi.fn(() =>
-  Promise.resolve(new Response("OK", { status: 200 })),
-);
-
-// Import worker functions (we'll test them individually)
-// Since the worker uses addEventListener, we need to extract the functions
-
-// ===== Function Tests =====
 
 describe("isValidHttpsUrl", () => {
-  // Inline implementation for testing
-  function isValidHttpsUrl(url) {
-    try {
-      const parsedUrl = new URL(url);
-      return parsedUrl.protocol === "https:";
-    } catch (e) {
-      return false;
-    }
-  }
+  const { isValidHttpsUrl } = loadWorker();
 
-  it("should return true for valid HTTPS URLs", () => {
+  it("accepts HTTPS URLs", () => {
     expect(isValidHttpsUrl("https://example.com")).toBe(true);
-    expect(isValidHttpsUrl("https://example.com/path")).toBe(true);
-    expect(isValidHttpsUrl("https://sub.example.com")).toBe(true);
+    expect(isValidHttpsUrl("https://sub.example.com/path")).toBe(true);
     expect(isValidHttpsUrl("https://example.com:8443")).toBe(true);
   });
 
-  it("should return false for HTTP URLs", () => {
-    expect(isValidHttpsUrl("http://example.com")).toBe(false);
-  });
-
-  it("should return false for invalid URLs", () => {
-    expect(isValidHttpsUrl("not-a-url")).toBe(false);
-    expect(isValidHttpsUrl("")).toBe(false);
-    expect(isValidHttpsUrl("javascript:alert(1)")).toBe(false);
-    expect(isValidHttpsUrl("data:text/html,<script>alert(1)</script>")).toBe(
-      false,
-    );
-  });
-
-  it("should return false for null/undefined", () => {
-    expect(isValidHttpsUrl(null)).toBe(false);
-    expect(isValidHttpsUrl(undefined)).toBe(false);
+  it("rejects other schemes and non-URLs", () => {
+    for (const url of [
+      "http://example.com",
+      "not-a-url",
+      "",
+      "javascript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      null,
+      undefined,
+    ]) {
+      expect(isValidHttpsUrl(url)).toBe(false);
+    }
   });
 });
 
 describe("sanitizeEmail", () => {
-  // Inline implementation for testing
-  function sanitizeEmail(email) {
-    const emailRegex = /^[^\s@<>'"]+@[^\s@<>'"]+\.[^\s@<>'"]+$/;
-    if (!emailRegex.test(email)) {
-      return "";
-    }
-    return email.replace(/[<>'"&]/g, "");
-  }
+  const { sanitizeEmail } = loadWorker();
 
-  it("should return valid emails unchanged", () => {
+  it("returns valid addresses unchanged", () => {
     expect(sanitizeEmail("test@example.com")).toBe("test@example.com");
-    expect(sanitizeEmail("user.name@domain.org")).toBe("user.name@domain.org");
     expect(sanitizeEmail("user+tag@example.co.uk")).toBe(
       "user+tag@example.co.uk",
     );
   });
 
-  it("should return empty string for invalid emails", () => {
-    expect(sanitizeEmail("not-an-email")).toBe("");
-    expect(sanitizeEmail("@example.com")).toBe("");
-    expect(sanitizeEmail("test@")).toBe("");
-    expect(sanitizeEmail("test@example")).toBe("");
-    expect(sanitizeEmail("")).toBe("");
+  it("rejects malformed addresses and markup", () => {
+    for (const email of [
+      "not-an-email",
+      "@example.com",
+      "test@",
+      "test@example",
+      "",
+      "test<script>@example.com",
+      "test'@example.com",
+      'test"@example.com',
+      "test@<img src=x onerror=alert(1)>.com",
+    ]) {
+      expect(sanitizeEmail(email)).toBe("");
+    }
+  });
+});
+
+describe("escapeHtml", () => {
+  const { escapeHtml } = loadWorker();
+
+  it("escapes HTML metacharacters", () => {
+    expect(escapeHtml(`<a href="x">'&'</a>`)).toBe(
+      "&lt;a href=&quot;x&quot;&gt;&#039;&amp;&#039;&lt;/a&gt;",
+    );
   });
 
-  it("should sanitize emails with dangerous characters", () => {
-    expect(sanitizeEmail("test<script>@example.com")).toBe("");
-    expect(sanitizeEmail("test'@example.com")).toBe("");
-    expect(sanitizeEmail('test"@example.com')).toBe("");
-  });
-
-  it("should handle XSS attempts", () => {
-    expect(sanitizeEmail("<script>alert(1)</script>@example.com")).toBe("");
-    expect(sanitizeEmail("test@<img src=x onerror=alert(1)>.com")).toBe("");
+  it("returns an empty string for empty input", () => {
+    expect(escapeHtml("")).toBe("");
+    expect(escapeHtml(undefined)).toBe("");
   });
 });
 
 describe("checkMaintenanceWindow", () => {
-  // Inline implementation for testing
-  function checkMaintenanceWindow(now, startTime, endTime) {
-    if (!startTime || !endTime) {
-      return false;
-    }
+  const window = {
+    MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
+    MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
+  };
+  const at = (iso, bindings = window) =>
+    loadWorker(bindings).checkMaintenanceWindow(new Date(iso));
 
-    try {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      return now >= start && now <= end;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  it("should return true when current time is within maintenance window", () => {
-    const now = new Date("2025-04-06T09:00:00Z");
-    const start = "2025-04-06T08:00:00Z";
-    const end = "2025-04-06T10:00:00Z";
-    expect(checkMaintenanceWindow(now, start, end)).toBe(true);
+  it("is true inside the window and at its start", () => {
+    expect(at("2025-04-06T09:00:00Z")).toBe(true);
+    expect(at("2025-04-06T08:00:00Z")).toBe(true);
   });
 
-  it("should return false when current time is before maintenance window", () => {
-    const now = new Date("2025-04-06T07:00:00Z");
-    const start = "2025-04-06T08:00:00Z";
-    const end = "2025-04-06T10:00:00Z";
-    expect(checkMaintenanceWindow(now, start, end)).toBe(false);
+  it("is false before and after the window", () => {
+    expect(at("2025-04-06T07:59:59Z")).toBe(false);
+    expect(at("2025-04-06T10:00:01Z")).toBe(false);
   });
 
-  it("should return false when current time is after maintenance window", () => {
-    const now = new Date("2025-04-06T11:00:00Z");
-    const start = "2025-04-06T08:00:00Z";
-    const end = "2025-04-06T10:00:00Z";
-    expect(checkMaintenanceWindow(now, start, end)).toBe(false);
-  });
-
-  it("should return true at exact start time", () => {
-    const now = new Date("2025-04-06T08:00:00Z");
-    const start = "2025-04-06T08:00:00Z";
-    const end = "2025-04-06T10:00:00Z";
-    expect(checkMaintenanceWindow(now, start, end)).toBe(true);
-  });
-
-  it("should return true at exact end time", () => {
-    const now = new Date("2025-04-06T10:00:00Z");
-    const start = "2025-04-06T08:00:00Z";
-    const end = "2025-04-06T10:00:00Z";
-    expect(checkMaintenanceWindow(now, start, end)).toBe(true);
-  });
-
-  it("should return false when no window is set", () => {
-    const now = new Date();
-    expect(checkMaintenanceWindow(now, "", "")).toBe(false);
-    expect(checkMaintenanceWindow(now, null, null)).toBe(false);
-    expect(checkMaintenanceWindow(now, undefined, undefined)).toBe(false);
-  });
-
-  it("should return false for invalid date strings", () => {
-    const now = new Date();
-    expect(checkMaintenanceWindow(now, "not-a-date", "also-not-a-date")).toBe(
-      false,
-    );
-    expect(checkMaintenanceWindow(now, "2025-04-06", "")).toBe(false);
+  it("is false without a window or with unparseable times", () => {
+    expect(at("2025-04-06T09:00:00Z", {})).toBe(false);
+    expect(
+      at("2025-04-06T09:00:00Z", {
+        MAINTENANCE_WINDOW_START: "not-a-date",
+        MAINTENANCE_WINDOW_END: "also-not-a-date",
+      }),
+    ).toBe(false);
   });
 });
 
 describe("getMaintenanceWindowMessage", () => {
-  function getMaintenanceWindowMessage(startTime, endTime) {
-    return loadWorker({
-      MAINTENANCE_WINDOW_START: startTime,
-      MAINTENANCE_WINDOW_END: endTime,
+  const message = (start, end) =>
+    loadWorker({
+      MAINTENANCE_WINDOW_START: start,
+      MAINTENANCE_WINDOW_END: end,
     }).getMaintenanceWindowMessage();
-  }
 
-  it("should return formatted message when window is set", () => {
-    const result = getMaintenanceWindowMessage(
-      "2025-04-06T08:00:00Z",
-      "2025-04-06T10:00:00Z",
-    );
+  it("shows the expected completion time", () => {
+    const result = message("2025-04-06T08:00:00Z", "2025-04-06T10:00:00Z");
     expect(result).toContain("Expected completion:");
     expect(result).toContain("Sun, 06 Apr 2025 10:00:00 GMT");
   });
 
-  it("should return empty string when no window is set", () => {
-    expect(getMaintenanceWindowMessage("", "")).toBe("");
-    expect(getMaintenanceWindowMessage(null, null)).toBe("");
-  });
-
-  it("should return empty string for invalid dates", () => {
-    expect(getMaintenanceWindowMessage("invalid", "invalid")).toBe("");
+  it("is empty without a valid window", () => {
+    expect(message("", "")).toBe("");
+    expect(message(null, null)).toBe("");
+    expect(message("invalid", "invalid")).toBe("");
   });
 });
 
-describe("IP Allowlist Logic", () => {
-  async function isAllowedIP(clientIP, allowedJson) {
-    const request = new Request("https://example.com/");
-    if (clientIP) request.headers.set("CF-Connecting-IP", clientIP);
-    const worker = loadWorker({ ALLOWED_IPS: allowedJson });
-    return (await worker.handleRequest(request)).status === 200;
+describe("IP allowlist", () => {
+  async function bypasses(ip, allowed) {
+    const worker = loadWorker({ ALLOWED_IPS: allowed });
+    return (await worker.handleRequest(request({ ip }))).status === 200;
   }
 
-  it("should allow IP in the allowlist", async () => {
-    expect(
-      await isAllowedIP("192.168.1.1", '["192.168.1.1", "10.0.0.1"]'),
-    ).toBe(true);
-    expect(await isAllowedIP("10.0.0.1", '["192.168.1.1", "10.0.0.1"]')).toBe(
+  it("passes listed IPs through to the origin", async () => {
+    expect(await bypasses("192.168.1.1", '["192.168.1.1", "10.0.0.1"]')).toBe(
+      true,
+    );
+    expect(await bypasses("10.0.0.1", '["192.168.1.1", "10.0.0.1"]')).toBe(
       true,
     );
   });
 
-  it("should deny IP not in the allowlist", async () => {
-    expect(await isAllowedIP("1.2.3.4", '["192.168.1.1", "10.0.0.1"]')).toBe(
-      false,
-    );
+  it("serves maintenance to other or missing IPs", async () => {
+    expect(await bypasses("1.2.3.4", '["192.168.1.1"]')).toBe(false);
+    expect(await bypasses(undefined, '["192.168.1.1"]')).toBe(false);
   });
 
-  it("should handle empty allowlist", async () => {
-    expect(await isAllowedIP("1.2.3.4", "[]")).toBe(false);
-    expect(await isAllowedIP("1.2.3.4", "")).toBe(false);
-  });
-
-  it("should handle invalid JSON", async () => {
-    expect(await isAllowedIP("1.2.3.4", "not-json")).toBe(false);
-    expect(await isAllowedIP("1.2.3.4", "{invalid}")).toBe(false);
-  });
-
-  it("should handle null/undefined client IP", async () => {
-    expect(await isAllowedIP(null, '["192.168.1.1"]')).toBe(false);
-    expect(await isAllowedIP(undefined, '["192.168.1.1"]')).toBe(false);
+  it("treats empty or invalid allowlists as empty", async () => {
+    for (const allowed of ["[]", "", "not-json", "{invalid}"]) {
+      expect(await bypasses("1.2.3.4", allowed)).toBe(false);
+    }
   });
 });
 
-describe("Region Allowlist Logic", () => {
-  async function isAllowedRegion(country, allowedJson) {
-    const request = new Request("https://example.com/");
-    request.cf = { country };
-    const worker = loadWorker({ ALLOWED_REGIONS: allowedJson });
-    return (await worker.handleRequest(request)).status === 200;
+describe("Region allowlist", () => {
+  async function bypasses(country, allowed) {
+    const worker = loadWorker({ ALLOWED_REGIONS: allowed });
+    return (await worker.handleRequest(request({ country }))).status === 200;
   }
 
-  it("should allow country in the allowlist", async () => {
-    expect(await isAllowedRegion("US", '["US", "CA", "GB"]')).toBe(true);
-    expect(await isAllowedRegion("CA", '["US", "CA", "GB"]')).toBe(true);
+  it("passes listed countries through to the origin", async () => {
+    expect(await bypasses("US", '["US", "CA", "GB"]')).toBe(true);
+    expect(await bypasses("CA", '["US", "CA", "GB"]')).toBe(true);
   });
 
-  it("should deny country not in the allowlist", async () => {
-    expect(await isAllowedRegion("DE", '["US", "CA", "GB"]')).toBe(false);
+  it("serves maintenance to other or unknown countries", async () => {
+    expect(await bypasses("DE", '["US", "CA", "GB"]')).toBe(false);
+    expect(await bypasses(null, '["US"]')).toBe(false);
+    expect(await bypasses(undefined, '["US"]')).toBe(false);
   });
 
-  it("should handle empty allowlist", async () => {
-    expect(await isAllowedRegion("US", "[]")).toBe(false);
-    expect(await isAllowedRegion("US", "")).toBe(false);
-  });
-
-  it("should handle invalid JSON", async () => {
-    expect(await isAllowedRegion("US", "not-json")).toBe(false);
-  });
-
-  it("should handle null/undefined country", async () => {
-    expect(await isAllowedRegion(null, '["US"]')).toBe(false);
-    expect(await isAllowedRegion(undefined, '["US"]')).toBe(false);
+  it("treats empty or invalid allowlists as empty", async () => {
+    for (const allowed of ["[]", "", "not-json"]) {
+      expect(await bypasses("US", allowed)).toBe(false);
+    }
   });
 });
 
-describe("Logo URL Security", () => {
-  function getSafeLogoHtml(logoUrl) {
-    if (!logoUrl) return "";
+describe("Logo URL", () => {
+  it("renders an HTTPS logo", async () => {
+    const html = await maintenancePage({
+      LOGO_URL: "https://example.com/logo.png",
+    });
+    expect(html).toContain('<img src="https://example.com/logo.png"');
+  });
 
-    // Validate HTTPS
-    try {
-      const parsedUrl = new URL(logoUrl);
-      if (parsedUrl.protocol !== "https:") return "";
-    } catch (e) {
-      return "";
+  it("drops non-HTTPS logos", async () => {
+    for (const url of [
+      "http://example.com/logo.png",
+      "javascript:alert(1)",
+      "JAVASCRIPT:alert(1)",
+      "data:image/png;base64,abc",
+      "DATA:text/html,<script>alert(1)</script>",
+    ]) {
+      expect(await maintenancePage({ LOGO_URL: url })).not.toContain("<img");
     }
-
-    // Check for dangerous URIs
-    const lowerUrl = logoUrl.toLowerCase();
-    if (lowerUrl.startsWith("javascript:") || lowerUrl.startsWith("data:")) {
-      return "";
-    }
-
-    // Sanitize and return
-    const sanitizedUrl = logoUrl.replace(/['"<>`&]/g, "");
-    return `<img src="${sanitizedUrl}" alt="Logo" style="max-width: 200px; margin-bottom: 1rem;">`;
-  }
-
-  it("should allow valid HTTPS logo URLs", () => {
-    const result = getSafeLogoHtml("https://example.com/logo.png");
-    expect(result).toContain('src="https://example.com/logo.png"');
   });
 
-  it("should reject HTTP logo URLs", () => {
-    expect(getSafeLogoHtml("http://example.com/logo.png")).toBe("");
-  });
-
-  it("should reject javascript: URLs", () => {
-    expect(getSafeLogoHtml("javascript:alert(1)")).toBe("");
-    expect(getSafeLogoHtml("JAVASCRIPT:alert(1)")).toBe("");
-  });
-
-  it("should reject data: URLs", () => {
-    expect(getSafeLogoHtml("data:image/png;base64,abc")).toBe("");
-    expect(getSafeLogoHtml("DATA:text/html,<script>alert(1)</script>")).toBe(
-      "",
-    );
-  });
-
-  it("should sanitize special characters in URL", () => {
-    const result = getSafeLogoHtml("https://example.com/logo<script>.png");
-    expect(result).not.toContain("<script>");
-  });
-
-  it("should return empty string for empty/null/undefined", () => {
-    expect(getSafeLogoHtml("")).toBe("");
-    expect(getSafeLogoHtml(null)).toBe("");
-    expect(getSafeLogoHtml(undefined)).toBe("");
+  it("strips markup characters from the URL", async () => {
+    const html = await maintenancePage({
+      LOGO_URL: 'https://example.com/logo"onerror="x<script>.png',
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain('"onerror');
   });
 });
 
-describe("HTML Response Generation", () => {
-  function generateMaintenanceHtml(config) {
-    const {
-      title = "Maintenance Mode",
-      message = "We are under maintenance",
-      customCss = "",
-      logoHtml = "",
-      contactEmail = "",
-      windowMessage = "",
-    } = config;
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
-    }
-    .container {
-      background: white;
-      padding: 3rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      max-width: 500px;
-    }
-    h1 { color: #333; margin-bottom: 1rem; }
-    p { color: #666; line-height: 1.6; }
-    .contact { margin-top: 2rem; font-size: 0.9rem; color: #999; }
-    ${customCss}
-  </style>
-</head>
-<body>
-  <div class="container">
-    ${logoHtml}
-    <h1>${title}</h1>
-    <p>${message}</p>
-    ${windowMessage}
-    ${contactEmail ? `<p class="contact">Contact: <a href="mailto:${contactEmail}">${contactEmail}</a></p>` : ""}
-  </div>
-</body>
-</html>`;
-  }
-
-  it("should generate valid HTML with default values", () => {
-    const html = generateMaintenanceHtml({});
+describe("Maintenance page", () => {
+  it("renders the configured title, message and contact", async () => {
+    const html = await maintenancePage({
+      MAINTENANCE_TITLE: "Custom Title",
+      MAINTENANCE_MESSAGE: "Custom message here",
+    });
     expect(html).toContain("<!DOCTYPE html>");
-    expect(html).toContain("<title>Maintenance Mode</title>");
-    expect(html).toContain("We are under maintenance");
-  });
-
-  it("should include custom title and message", () => {
-    const html = generateMaintenanceHtml({
-      title: "Custom Title",
-      message: "Custom message here",
-    });
     expect(html).toContain("<title>Custom Title</title>");
-    expect(html).toContain("Custom message here");
+    expect(html).toContain("<p>Custom message here</p>");
+    expect(html).toContain(
+      '<a href="mailto:test@example.com">test@example.com</a>',
+    );
   });
 
-  it("should include custom CSS", () => {
-    const html = generateMaintenanceHtml({
-      customCss: "body { background: blue; }",
+  it("falls back to default title and message", async () => {
+    const html = await maintenancePage({
+      MAINTENANCE_TITLE: "",
+      MAINTENANCE_MESSAGE: "",
     });
-    expect(html).toContain("body { background: blue; }");
+    expect(html).toContain("<title>Maintenance Mode</title>");
+    expect(html).toContain("We are currently performing scheduled maintenance.");
   });
 
-  it("should include logo HTML", () => {
-    const html = generateMaintenanceHtml({
-      logoHtml: '<img src="https://example.com/logo.png" alt="Logo">',
+  it("escapes the title and message", async () => {
+    const html = await maintenancePage({
+      MAINTENANCE_TITLE: "Down <script>alert(1)</script>",
+      MAINTENANCE_MESSAGE: "<img src=x onerror=alert(1)>",
     });
-    expect(html).toContain('src="https://example.com/logo.png"');
+    expect(html).not.toContain("<script>alert(1)");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toContain("Down &lt;script&gt;");
   });
 
-  it("should include contact email when provided", () => {
-    const html = generateMaintenanceHtml({
-      contactEmail: "test@example.com",
-    });
-    expect(html).toContain("mailto:test@example.com");
-    expect(html).toContain("test@example.com</a>");
-  });
-
-  it("should not include contact section when email is empty", () => {
-    const html = generateMaintenanceHtml({
-      contactEmail: "",
-    });
+  it("omits the contact line for an invalid email", async () => {
+    const html = await maintenancePage({ CONTACT_EMAIL: "not-an-email" });
     expect(html).not.toContain("mailto:");
   });
 
-  it("should include maintenance window message", () => {
-    const html = generateMaintenanceHtml({
-      windowMessage:
-        "<p>Expected completion: Sun, 06 Apr 2025 10:00:00 GMT</p>",
+  it("includes custom CSS but cannot close the style element", async () => {
+    const html = await maintenancePage({
+      CUSTOM_CSS: "body { background: blue; }</style><script>x()</script>",
     });
-    expect(html).toContain("Expected completion:");
-  });
-});
-
-describe("Response Headers", () => {
-  it("should have correct status code 503", () => {
-    const response = new Response("", { status: 503 });
-    expect(response.status).toBe(503);
+    expect(html).toContain("body { background: blue; }");
+    expect(html.match(/<\/style>/g)).toHaveLength(1);
   });
 
-  it("should have correct content type", () => {
-    const response = new Response("", {
-      headers: {
-        "Content-Type": "text/html;charset=UTF-8",
-      },
-    });
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/html;charset=UTF-8",
-    );
-  });
-
-  it("should have no-cache headers", () => {
-    const response = new Response("", {
-      headers: {
-        "Cache-Control": "no-store, no-cache, must-revalidate",
-      },
-    });
-    expect(response.headers.get("Cache-Control")).toContain("no-store");
-    expect(response.headers.get("Cache-Control")).toContain("no-cache");
-  });
-
-  it("should have Retry-After header", () => {
-    const response = new Response("", {
-      headers: {
-        "Retry-After": "3600",
-      },
-    });
-    expect(response.headers.get("Retry-After")).toBe("3600");
-  });
-});
-
-describe("Edge Cases", () => {
-  it("should handle very long maintenance messages", () => {
-    const longMessage = "A".repeat(10000);
-    // Should not throw
-    expect(() => {
-      generateMaintenanceHtml({ message: longMessage });
-    }).not.toThrow();
-  });
-
-  it("should handle special characters in title", () => {
-    const title = "Maintenance <script>alert(1)</script>";
-    // The title should be escaped in a real implementation
-    // This test documents the behavior
-    const html = generateMaintenanceHtml({ title });
-    expect(html).toContain(title); // Note: Real impl should escape
-  });
-
-  it("should handle unicode characters", () => {
-    const html = generateMaintenanceHtml({
-      title: "Wartung 🔧",
-      message: "メンテナンス中です",
+  it("keeps Unicode content", async () => {
+    const html = await maintenancePage({
+      MAINTENANCE_TITLE: "Wartung 🔧",
+      MAINTENANCE_MESSAGE: "メンテナンス中です",
     });
     expect(html).toContain("🔧");
     expect(html).toContain("メンテナンス中です");
   });
 
-  it("should handle empty strings gracefully", () => {
-    const html = generateMaintenanceHtml({
-      title: "",
-      message: "",
-      customCss: "",
-      logoHtml: "",
-      contactEmail: "",
-      windowMessage: "",
-    });
-    expect(html).toContain("<!DOCTYPE html>");
+  it("sends 503 with no-cache and hardening headers", async () => {
+    const response = await loadWorker().handleRequest(request());
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/html;charset=UTF-8",
+    );
+    expect(response.headers.get("Cache-Control")).toContain("no-store");
+    expect(response.headers.get("Retry-After")).toBe("3600");
+    expect(response.headers.get("Content-Security-Policy")).toContain(
+      "default-src 'none'",
+    );
+    expect(response.headers.get("X-Frame-Options")).toBe("DENY");
+  });
+
+  it("passes traffic through when maintenance is disabled", async () => {
+    const worker = loadWorker({ MAINTENANCE_ENABLED: "false" });
+    const response = await worker.handleRequest(request());
+    expect(response.status).toBe(200);
+    expect(worker.fetch).toHaveBeenCalledTimes(1);
   });
 });
-
-// Helper function used in multiple tests
-function generateMaintenanceHtml(config) {
-  const {
-    title = "Maintenance Mode",
-    message = "We are under maintenance",
-    customCss = "",
-    logoHtml = "",
-    contactEmail = "",
-    windowMessage = "",
-  } = config;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${title}</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f5f5f5;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      text-align: center;
-    }
-    .container {
-      background: white;
-      padding: 3rem;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      max-width: 500px;
-    }
-    h1 { color: #333; margin-bottom: 1rem; }
-    p { color: #666; line-height: 1.6; }
-    .contact { margin-top: 2rem; font-size: 0.9rem; color: #999; }
-    ${customCss}
-  </style>
-</head>
-<body>
-  <div class="container">
-    ${logoHtml}
-    <h1>${title}</h1>
-    <p>${message}</p>
-    ${windowMessage}
-    ${contactEmail ? `<p class="contact">Contact: <a href="mailto:${contactEmail}">${contactEmail}</a></p>` : ""}
-  </div>
-</body>
-</html>`;
-}
