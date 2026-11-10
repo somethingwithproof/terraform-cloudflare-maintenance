@@ -132,6 +132,12 @@ All notable changes to this module are documented here. The format follows
 
 ### Security
 
+- CI scans the OpenTofu code, workflows and files for secrets with Checkov
+  (job **Config Scan**), fails on any finding and uploads SARIF to code
+  scanning. It replaces tfsec, which is no longer maintained and whose
+  action downloaded its binary unauthenticated, failing on GitHub API rate
+  limits. Findings are suppressed only inline, with the reason.
+
 - `deploy/.terraform.lock.hcl` is committed for linux_amd64, darwin_arm64 and
   darwin_amd64 and CI and CD initialize with `-lockfile=readonly`, so CD
   can no longer pick up an unreviewed provider build.

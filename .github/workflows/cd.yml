@@ -8,6 +8,7 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # checkov:skip=CKV_GHA_7: a deploy, not a build; the inputs pick the environment and override validated settings for one run
   workflow_dispatch:
     inputs:
       environment:

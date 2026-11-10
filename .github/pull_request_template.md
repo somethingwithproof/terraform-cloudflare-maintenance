@@ -13,7 +13,7 @@ Brief description of the changes in this PR.
 - [ ] `terraform fmt` passes
 - [ ] `terraform validate` passes
 - [ ] `tflint` passes
-- [ ] `tfsec` or `checkov` security scan passes
+- [ ] Checkov config scan passes (CI job "Config Scan")
 - [ ] CloudFlare Worker tests pass (`npm test` in worker directory)
 - [ ] Tested with Terraform version: ___
 - [ ] Tested with CloudFlare provider version: ___
