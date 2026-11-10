@@ -192,9 +192,73 @@ describe("IP allowlist", () => {
   });
 
   it("treats empty or invalid allowlists as empty", async () => {
-    for (const allowed of ["[]", "", "not-json", "{invalid}"]) {
+    for (const allowed of ["[]", "", "not-json", "{invalid}", '"1.2.3.4"']) {
       expect(await bypasses("1.2.3.4", allowed)).toBe(false);
     }
+  });
+
+  it("ignores X-Forwarded-For", async () => {
+    const worker = loadWorker({ ALLOWED_IPS: '["10.0.0.1"]' });
+    const req = request({ ip: "203.0.113.9" });
+    req.headers.set("X-Forwarded-For", "10.0.0.1");
+    expect((await worker.handleRequest(req)).status).toBe(503);
+  });
+});
+
+describe("isAllowedIp", () => {
+  const { isAllowedIp } = loadWorker();
+  const allowed = (ip, ...entries) => isAllowedIp(ip, entries);
+
+  it("matches IPv4 CIDR ranges", () => {
+    expect(allowed("192.168.0.42", "192.168.0.0/24")).toBe(true);
+    expect(allowed("192.168.1.1", "192.168.0.0/24")).toBe(false);
+    expect(allowed("10.255.0.1", "10.0.0.0/8")).toBe(true);
+    expect(allowed("11.0.0.1", "10.0.0.0/8")).toBe(false);
+    expect(allowed("203.0.113.7", "0.0.0.0/0")).toBe(true);
+    expect(allowed("203.0.113.7", "203.0.113.7/32")).toBe(true);
+  });
+
+  it("matches IPv6 addresses in any spelling", () => {
+    expect(allowed("2001:db8::1", "2001:0db8:0000:0000:0000:0000:0000:0001")).toBe(
+      true,
+    );
+    expect(allowed("2001:DB8::1", "2001:db8::1")).toBe(true);
+    expect(allowed("2001:db8::2", "2001:db8::1")).toBe(false);
+    expect(allowed("::1", "0:0:0:0:0:0:0:1")).toBe(true);
+  });
+
+  it("matches IPv6 CIDR ranges", () => {
+    expect(allowed("2001:db8:abcd:12::1", "2001:db8:abcd::/48")).toBe(true);
+    expect(allowed("2001:db8:abce::1", "2001:db8:abcd::/48")).toBe(false);
+    expect(allowed("fe80::1", "::/0")).toBe(true);
+  });
+
+  it("treats IPv4-mapped IPv6 as the IPv4 address", () => {
+    expect(allowed("::ffff:192.0.2.1", "192.0.2.1")).toBe(true);
+    expect(allowed("::ffff:c000:201", "192.0.2.0/24")).toBe(true);
+    expect(allowed("192.0.2.1", "::ffff:192.0.2.1")).toBe(true);
+    expect(allowed("192.0.2.200", "::ffff:192.0.2.0/120")).toBe(true);
+    expect(allowed("192.0.3.1", "::ffff:192.0.2.0/120")).toBe(false);
+  });
+
+  it("never matches across address families", () => {
+    expect(allowed("192.0.2.1", "::/0")).toBe(false);
+    expect(allowed("2001:db8::1", "0.0.0.0/0")).toBe(false);
+  });
+
+  it("rejects malformed addresses and entries", () => {
+    expect(allowed("192.168.0.1", "192.168.0.0/33")).toBe(false);
+    expect(allowed("192.168.0.1", "192.168.0.0/24/1")).toBe(false);
+    expect(allowed("192.168.0.1", "192.168.0.0/x")).toBe(false);
+    expect(allowed("192.168.0.1", "::ffff:192.168.0.0/64")).toBe(false);
+    expect(allowed("192.168.0.1", 42, null, "")).toBe(false);
+    expect(allowed("010.0.0.1", "10.0.0.1")).toBe(false);
+    expect(allowed("256.0.0.1", "0.0.0.0/0")).toBe(false);
+    expect(allowed("1.2.3", "0.0.0.0/0")).toBe(false);
+    expect(allowed("1::2::3", "::/0")).toBe(false);
+    expect(allowed("1:2:3:4:5:6:7:8:9", "::/0")).toBe(false);
+    expect(allowed("2001:db8::g", "::/0")).toBe(false);
+    expect(allowed(null, "0.0.0.0/0")).toBe(false);
   });
 });
 

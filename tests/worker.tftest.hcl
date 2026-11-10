@@ -226,3 +226,29 @@ run "verify_disabled_worker_configuration" {
     error_message = "Ruleset should not be created when maintenance is disabled"
   }
 }
+run "reject_malformed_allowed_ip" {
+  command = plan
+
+  variables {
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
+    allowed_ips           = ["192.0.2.1", "198.51.100.0/33"]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "accept_ipv4_ipv6_and_cidr_allowed_ips" {
+  command = plan
+
+  variables {
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
+    allowed_ips           = ["192.0.2.1", "198.51.100.0/24", "2001:db8::1", "2001:db8::/32", "::ffff:192.0.2.1"]
+  }
+
+  assert {
+    condition     = one([for b in cloudflare_workers_script.maintenance.bindings : b.text if b.name == "ALLOWED_IPS"]) == jsonencode(var.allowed_ips)
+    error_message = "ALLOWED_IPS binding should carry the allowlist as JSON"
+  }
+}
