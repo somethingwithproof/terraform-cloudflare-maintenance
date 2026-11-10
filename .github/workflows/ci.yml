@@ -95,19 +95,39 @@ jobs:
       - name: Run TFLint
         run: tflint -f compact
 
-  tfsec:
-    name: TFSec
+  # Checkov scans the OpenTofu code, the workflows and every file for
+  # secrets, and fails on any finding. Suppress a finding only inline, next
+  # to the code, with the reason:  # checkov:skip=CKV_XXX_N: why it is safe
+  config-scan:
+    name: Config Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # Upload the SARIF report to code scanning
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
         with:
           persist-credentials: false
 
-      - name: Run TFSec
-        uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@45edc9d8856b664db2ec251f5f8632361f0a67aa # v12.3139.0 (checkov 3.4.3)
         with:
+          directory: .
+          framework: terraform,github_actions,secrets
+          skip_path: worker/node_modules
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
           soft_fail: false
+
+      # Uploaded even when the scan fails, so the findings show in the
+      # pull request. Forks get a read-only token and cannot upload.
+      - name: Upload SARIF report
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
 
   test-worker:
     name: Test Cloudflare Worker
@@ -164,7 +184,7 @@ jobs:
   test-opentofu:
     name: Run OpenTofu Tests
     runs-on: ubuntu-latest
-    needs: [validate, tflint, tfsec]
+    needs: [validate, tflint, config-scan]
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
