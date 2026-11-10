@@ -22,6 +22,14 @@ All notable changes to this module are documented here. The format follows
   account. Names must be 1-63 lowercase letters, digits or dashes; an empty
   string is rejected.
 
+- Notifications module: `SCHEDULED` no longer triggers a PagerDuty incident
+  (it never resolved on its own, because nothing applies when a window ends).
+  Slack and webhook targets still get the message, and `event_action` is
+  `none` for it. When `schedule_name` or `environment` changes while an
+  incident is open, or the status drops back to `SCHEDULED`, the old incident
+  is now resolved under its old dedup key. Incidents opened by an earlier
+  release for `SCHEDULED` are not tracked; resolve them by hand.
+
 - The module no longer configures the Cloudflare provider and the
   `cloudflare_api_token` variable is removed. Configure the provider in the
   calling root module (for example from `CLOUDFLARE_API_TOKEN`) and drop the
@@ -79,7 +87,17 @@ All notable changes to this module are documented here. The format follows
   any spelling and treats IPv4-mapped IPv6 as IPv4. Entries are validated at
   plan time.
 
+### Security
+
+- `deploy/.terraform.lock.hcl` is committed for linux_amd64, darwin_arm64 and
+  darwin_amd64 and CI and CD initialize with `-lockfile=readonly`, so CD
+  can no longer pick up an unreviewed provider build.
+
 ### Fixed
+
+- The `maintenance_status` and `maintenance_window` outputs depend on the
+  Worker script and route, so notifications that consume them are sent only
+  after the Cloudflare changes in the same apply succeed.
 
 - `allowed_ips` validation now rejects the entries the Worker ignores: IPv4
   octets with leading zeros (`010.0.0.1`) and IPv4-mapped IPv6 ranges with a

@@ -31,6 +31,10 @@ output "maintenance_enabled" {
 output "maintenance_status" {
   description = "SCHEDULED when a maintenance window is set, otherwise ENABLED or DISABLED"
   value       = var.maintenance_window != null ? "SCHEDULED" : var.enabled ? "ENABLED" : "DISABLED"
+
+  # The notifications module consumes this output. Without the dependency it
+  # could announce a change before, or despite, the Cloudflare apply.
+  depends_on = [cloudflare_workers_script.maintenance, cloudflare_workers_route.maintenance]
 }
 
 output "environment" {
@@ -41,6 +45,8 @@ output "environment" {
 output "maintenance_window" {
   description = "Scheduled maintenance window if configured"
   value       = var.maintenance_window != null ? var.maintenance_window : { start_time = "", end_time = "" }
+
+  depends_on = [cloudflare_workers_script.maintenance, cloudflare_workers_route.maintenance]
 }
 
 output "allowed_regions" {

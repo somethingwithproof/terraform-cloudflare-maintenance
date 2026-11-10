@@ -49,10 +49,35 @@ fails the apply.
 
 ## PagerDuty incidents
 
-`ENABLED`, `SCHEDULED`, `STARTING`, `ACTIVE` and `ENDING` send a `trigger`
-event. `DISABLED` and `COMPLETED` send a `resolve` event. Both use the dedup
-key `terraform-cloudflare-maintenance/<environment>/<schedule_name>`, so ending
-maintenance resolves the incident that starting it opened.
+| Status | PagerDuty | Slack and webhooks |
+|--------|-----------|--------------------|
+| `ENABLED`, `STARTING`, `ACTIVE`, `ENDING` | `trigger` | message |
+| `DISABLED`, `COMPLETED` | `resolve` | message |
+| `SCHEDULED` | nothing | message |
+
+Events use the dedup key
+`terraform-cloudflare-maintenance/<environment>/<schedule_name>` (the
+`dedup_key` output), so ending maintenance resolves the incident that starting
+it opened. A window that has not started pages nobody.
+
+When `schedule_name` or `environment` changes while an incident is open, or
+the status changes from a triggering one to `SCHEDULED`, the old incident is
+resolved under its old key before anything new is sent. Each notification
+keeps the key it announced in its `terraform_data` input; when an apply
+replaces it, the destroy-time provisioner writes that key to
+`.terraform/maintenance-notifications/` in the root module, and the
+replacement resolves it once it has delivered. The file holds no secrets and
+is removed after a successful delivery; a failed delivery keeps it, so the
+retry still resolves. Removing a target or destroying the module while an
+incident is open leaves that incident open: set the status to `DISABLED` and
+apply first.
+
+Notifications only go out on apply. Nothing applies when a scheduled window
+opens or closes, so the module cannot trigger at the start of a window or
+resolve at its end. To page for a window, set the status to `ACTIVE` (or
+`ENABLED`) and apply when it starts, and `COMPLETED` when it ends, or use the
+runtime toggle in `scripts/maintenance`, which sends the same events under the
+same key.
 
 ## Inputs
 
@@ -70,11 +95,13 @@ maintenance resolves the incident that starting it opened.
 |------|-------------|
 | notification_count | Number of notification targets configured |
 | notification_types | Map of target name to slack, pagerduty or webhook |
-| event_action | PagerDuty event action for the status: trigger or resolve |
+| event_action | PagerDuty event action for the status: trigger, resolve or none |
+| dedup_key | PagerDuty dedup key for the environment and schedule |
 
 ## Testing
 
 ```bash
 tofu init -backend=false && tofu test   # in this directory; plans only
 cd ../../tests && npx vitest run unit/notify.test.js   # runs notify.sh with a stub curl
+tests/apply-handoff.sh   # real applies with a stub curl; checks the incident handoff
 ```

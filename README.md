@@ -299,6 +299,13 @@ Use GitHub environment protection rules (for example required reviewers on
 Terraform API; HCP officially supports only Terraform, so check that state
 upload works in the `dev` workspace first.
 
+`deploy/.terraform.lock.hcl` pins the provider builds for `linux_amd64`,
+`darwin_arm64` and `darwin_amd64`, and CI and CD run `tofu init
+-lockfile=readonly`, so an apply always uses the reviewed provider. Dependabot
+(`opentofu` ecosystem) proposes updates; to update by hand, run
+`tofu providers lock -platform=linux_amd64 -platform=darwin_arm64
+-platform=darwin_amd64` in `deploy/` and commit the result.
+
 To use the same root locally:
 
 ```bash
@@ -369,7 +376,10 @@ maintenance, have a scheduler set the next window and apply.
 
 The `modules/notifications` submodule announces maintenance to Slack,
 PagerDuty (trigger, then resolve when maintenance ends) or any HTTPS webhook
-when an apply changes the status or window. `notification_urls` is a sensitive
+when an apply changes the status or window, after the Cloudflare changes in
+that apply have succeeded. A `SCHEDULED` window pages nobody, and because
+nothing applies when a window opens or closes, the module cannot page at
+those moments; see the module README. `notification_urls` is a sensitive
 map of non-secret names to URLs; the URLs never reach plans, state or command
 lines. See the [notifications module documentation](modules/notifications/README.md)
 for URL formats and requirements.
