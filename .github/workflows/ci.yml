@@ -137,6 +137,27 @@ jobs:
           sarif_file: checkov.sarif
           category: checkov
 
+      # Known vulnerabilities in the Go and npm dependencies, reported to code
+      # scanning without failing the job: a new advisory should not break
+      # every open pull request. Dependabot opens the fixes.
+      - name: Scan dependencies with Trivy
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-deps.sarif
+
+      - name: Upload dependency scan
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          sarif_file: trivy-deps.sarif
+          category: trivy-dependencies
+
   test-worker:
     name: Test Cloudflare Worker
     runs-on: ubuntu-latest

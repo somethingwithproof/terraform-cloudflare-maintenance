@@ -533,9 +533,13 @@ None of the automated tests call the Cloudflare API:
   `modules/notifications/notify.sh` with a stub `curl`.
 - **Examples**: CI runs `tofu validate` on every directory under `examples/`.
 
-The Terratest suite in `tests/e2e/` applies the module to a real zone and only
-runs from a manual `workflow_dispatch` with the `CF_E2E_*` settings for a
-dedicated test zone. Every test copies the module to its own temporary
+The Terratest suite in `tests/e2e/` applies the module to a real zone. It
+runs only from **E2E Tests > Run workflow** on `main`, in the `e2e` GitHub
+environment, which holds the settings for a dedicated test zone: secrets
+`CF_E2E_API_TOKEN` (Workers Scripts and Workers Routes edit on that zone's
+account), `CF_E2E_ACCOUNT_ID`, `CF_E2E_ZONE_ID`, optional
+`CF_E2E_RATE_LIMIT_ZONE_ID`, and the variable `CF_E2E_ZONE_NAME`. Without
+them the run succeeds with a warning that nothing was tested. Every test copies the module to its own temporary
 directory and deploys a uniquely named Worker on a unique hostname, so the
 tests run in parallel without sharing state. The rate limiting test runs only
 when `CF_E2E_RATE_LIMIT_ZONE_ID` names a throwaway zone, because it deletes
