@@ -345,7 +345,7 @@ async function handleRequest(request, env, now = /* @__PURE__ */ new Date()) {
       title = o.title;
       message = o.message;
     }
-    active = toggle.kind === "error" ? env.KV_FAILURE_MODE === "closed" : isMaintenanceActive(enabled, window, now);
+    active = toggle.kind === "error" && env.KV_FAILURE_MODE === "closed" || isMaintenanceActive(enabled, window, now);
   } else {
     active = isMaintenanceActive(enabled, window, now);
   }

@@ -129,7 +129,7 @@ variable "retry_after_seconds" {
 }
 
 variable "runtime_toggle" {
-  description = "Lets scripts/maintenance (or the Toggle maintenance workflow) switch maintenance on and off, set a window or change the text within about a minute, without an apply. Creates a Workers KV namespace the Worker reads on each request (cached at each edge location for cache_ttl_seconds), and keeps the route deployed while enabled. failure_mode decides what happens if KV cannot be read or holds a malformed value: \"open\" passes traffic to the origin, \"closed\" serves the maintenance page."
+  description = "Lets scripts/maintenance (or the Toggle maintenance workflow) switch maintenance on and off, set a window or change the text within about a minute, without an apply. Creates a Workers KV namespace the Worker reads on each request (cached at each edge location for cache_ttl_seconds), and keeps the route deployed while enabled. failure_mode decides what happens if KV cannot be read or holds a malformed value: \"open\" falls back to the Terraform settings (enabled and maintenance_window), \"closed\" serves the maintenance page."
   type = object({
     enabled           = optional(bool, false)
     failure_mode      = optional(string, "open")
