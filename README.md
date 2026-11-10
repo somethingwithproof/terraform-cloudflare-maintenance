@@ -98,8 +98,10 @@ tofu apply
 - `versions.tf` - Provider version constraints
 - `deploy/` - Root configuration the CD workflow applies with HCP Terraform state
 - `modules/notifications/` - Notification integration submodule
+- `worker/` - The Worker in TypeScript (`src/`), its tests (`test/`) and the
+  committed bundle Terraform deploys (`dist/index.js`)
 - `examples/` - Usage examples (basic, advanced, scheduled)
-- `tests/` - Integration tests
+- `tests/` - OpenTofu tests, shared fixtures and the Terratest suite (`e2e/`)
 
 
 ## Usage
@@ -401,20 +403,26 @@ for URL formats and requirements.
 
 ## Development
 
-Format code:
 ```bash
-terraform fmt -recursive
-```
-
-Validate configuration:
-```bash
-terraform validate
-```
-
-Run linting:
-```bash
+tofu fmt -recursive
+tofu validate
 tflint
 ```
+
+The Worker is TypeScript in `worker/src`. Terraform uploads
+`worker/dist/index.js`, the bundle wrangler builds from it, which is
+committed so that using the module needs no Node toolchain. After changing
+`worker/src`, rebuild and commit the bundle; CI fails when it is stale:
+
+```bash
+cd worker
+npm ci --ignore-scripts
+npm run build       # writes dist/index.js
+npm run dev         # serves the Worker locally with the vars in wrangler.json
+```
+
+`worker/wrangler.json` holds the runtime `compatibility_date`, which the
+module deploys with as well, and the local defaults for every binding.
 
 ## Testing
 
@@ -423,10 +431,13 @@ None of the automated tests call the Cloudflare API:
 - **OpenTofu tests** (`tests/*.tftest.hcl`): plan the module against a mocked
   Cloudflare provider and assert on the planned resources, bindings and input
   validation.
-- **Worker unit tests** (`tests/unit/`): run the shipped `worker.js` in a VM
-  context and assert on its functions and responses.
-- **Worker integration tests** (`tests/integration/`): run `worker.js` in
-  Miniflare.
+- **Worker tests** (`worker/test/worker/`): run the Worker in workerd, the
+  Workers runtime, through the Cloudflare Vitest plugin. The unit tests call
+  the request handler with their own bindings and clock; the integration
+  tests send requests through the Worker's `fetch` export with the bindings
+  in `wrangler.json`.
+- **Notification script tests** (`worker/test/scripts/`): run
+  `modules/notifications/notify.sh` with a stub `curl`.
 - **Examples**: CI runs `tofu validate` on every directory under `examples/`.
 
 The Terratest suite in `tests/e2e/` applies the module to a real zone and only
@@ -439,8 +450,9 @@ that zone's rate limiting rules.
 
 ```bash
 tofu init -backend=false && tofu test   # OpenTofu tests
-cd tests && npm ci && npm test          # Worker unit and integration tests
-cd tests && npm run lint                # ESLint for worker.js and tests
+cd worker && npm ci --ignore-scripts
+npm test                                # Worker and notify.sh tests
+npm run typecheck && npm run lint       # tsc --noEmit and typescript-eslint
 ```
 
 ## Contributing

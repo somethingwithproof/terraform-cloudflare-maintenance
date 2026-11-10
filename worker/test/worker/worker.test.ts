@@ -1,23 +1,14 @@
-/**
- * Unit tests for the Cloudflare maintenance Worker.
- *
- * Every test runs the shipped ../../worker.js in a fresh VM context, so the
- * functions and the request handler under test are the real ones. Bindings
- * that Cloudflare injects as globals are supplied per test via loadWorker().
- */
+// Tests of the Worker's request handling, run inside workerd. Each test
+// passes its own bindings and clock to handleRequest, so the page logic and
+// the response under test are the shipped ones.
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { runInNewContext } from "node:vm";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import allowedIpFixtures from "../../../tests/fixtures/allowed-ips.json";
+import { escapeHtml, isValidHttpsUrl, sanitizeEmail } from "../../src/html";
+import { type Env, handleRequest } from "../../src/index";
+import { isAllowedIp, parseCidr } from "../../src/ip";
 
-const workerUrl = new URL("../../worker.js", import.meta.url);
-const allowedIpFixtures = JSON.parse(
-  readFileSync(new URL("../fixtures/allowed-ips.json", import.meta.url), "utf8"),
-);
-const workerSource = readFileSync(workerUrl, "utf8");
-
-const defaultBindings = {
+const defaultEnv: Env = {
   MAINTENANCE_ENABLED: "true",
   MAINTENANCE_TITLE: "Test Maintenance",
   MAINTENANCE_MESSAGE: "We are under maintenance",
@@ -31,38 +22,42 @@ const defaultBindings = {
   ALLOWED_REGIONS: "[]",
 };
 
-function loadWorker(bindings = {}) {
-  const context = {
-    ...defaultBindings,
-    ...bindings,
-    URL,
-    Response,
-    Date,
-    addEventListener() {},
-    fetch: vi.fn(async () => new Response("Origin response")),
-  };
-  runInNewContext(workerSource, context, {
-    filename: fileURLToPath(workerUrl),
-  });
-  return context;
+const window = {
+  MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
+  MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
+};
+
+let origin: ReturnType<typeof vi.spyOn<typeof globalThis, "fetch">>;
+
+beforeEach(() => {
+  origin = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(new Response("Origin response")));
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function request({ ip, country }: { ip?: string; country?: string | null } = {}): Request {
+  const headers = new Headers();
+  if (ip) headers.set("CF-Connecting-IP", ip);
+  const init: RequestInit = { headers };
+  if (country !== undefined) {
+    (init as { cf?: unknown }).cf = { country };
+  }
+  return new Request("https://example.com/", init);
 }
 
-function request({ ip, country } = {}) {
-  const req = new Request("https://example.com/");
-  if (ip) req.headers.set("CF-Connecting-IP", ip);
-  if (country !== undefined) req.cf = { country };
-  return req;
+function serve(env: Partial<Env> = {}, req: Request = request(), now?: Date): Promise<Response> {
+  return handleRequest(req, { ...defaultEnv, ...env }, now);
 }
 
-async function maintenancePage(bindings = {}) {
-  const response = await loadWorker(bindings).handleRequest(request());
+async function maintenancePage(env: Partial<Env> = {}): Promise<string> {
+  const response = await serve(env);
   expect(response.status).toBe(503);
   return response.text();
 }
 
 describe("isValidHttpsUrl", () => {
-  const { isValidHttpsUrl } = loadWorker();
-
   it("accepts HTTPS URLs", () => {
     expect(isValidHttpsUrl("https://example.com")).toBe(true);
     expect(isValidHttpsUrl("https://sub.example.com/path")).toBe(true);
@@ -85,13 +80,21 @@ describe("isValidHttpsUrl", () => {
 });
 
 describe("sanitizeEmail", () => {
-  const { sanitizeEmail } = loadWorker();
-
   it("returns valid addresses unchanged", () => {
     expect(sanitizeEmail("test@example.com")).toBe("test@example.com");
-    expect(sanitizeEmail("user+tag@example.co.uk")).toBe(
-      "user+tag@example.co.uk",
-    );
+    expect(sanitizeEmail("user+tag@example.co.uk")).toBe("user+tag@example.co.uk");
+    expect(sanitizeEmail("ops@a.b")).toBe("ops@a.b");
+  });
+
+  it("removes & from an otherwise valid address", () => {
+    expect(sanitizeEmail("r&d@example.com")).toBe("rd@example.com");
+  });
+
+  it("checks long addresses in linear time", () => {
+    const hostile = `!@!.${"!.".repeat(50_000)}`;
+    const started = Date.now();
+    expect(sanitizeEmail(`${hostile}@`)).toBe("");
+    expect(Date.now() - started).toBeLessThan(100);
   });
 
   it("rejects malformed addresses and markup", () => {
@@ -105,6 +108,10 @@ describe("sanitizeEmail", () => {
       "test'@example.com",
       'test"@example.com',
       "test@<img src=x onerror=alert(1)>.com",
+      "a@b@example.com",
+      "test@.com",
+      "test@example.",
+      "test@exa mple.com",
     ]) {
       expect(sanitizeEmail(email)).toBe("");
     }
@@ -112,12 +119,8 @@ describe("sanitizeEmail", () => {
 });
 
 describe("escapeHtml", () => {
-  const { escapeHtml } = loadWorker();
-
   it("escapes HTML metacharacters", () => {
-    expect(escapeHtml(`<a href="x">'&'</a>`)).toBe(
-      "&lt;a href=&quot;x&quot;&gt;&#039;&amp;&#039;&lt;/a&gt;",
-    );
+    expect(escapeHtml(`<a href="x">'&'</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&#039;&amp;&#039;&lt;/a&gt;");
   });
 
   it("returns an empty string for empty input", () => {
@@ -127,83 +130,65 @@ describe("escapeHtml", () => {
 });
 
 describe("Scheduled maintenance window", () => {
-  const window = {
-    MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
-    MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
-  };
-
-  // Serve one request at the given instant through the real handler.
-  async function statusAt(iso, bindings) {
-    vi.useFakeTimers({ now: new Date(iso), toFake: ["Date"] });
-    try {
-      const worker = loadWorker(bindings);
-      return (await worker.handleRequest(request())).status;
-    } finally {
-      vi.useRealTimers();
-    }
-  }
+  const statusAt = async (iso: string, env: Partial<Env>) => (await serve(env, request(), new Date(iso))).status;
 
   for (const enabled of ["true", "false"]) {
     describe(`with MAINTENANCE_ENABLED=${enabled}`, () => {
-      const bindings = { ...window, MAINTENANCE_ENABLED: enabled };
+      const env = { ...window, MAINTENANCE_ENABLED: enabled };
 
       it("passes traffic through before the window", async () => {
-        expect(await statusAt("2025-04-06T07:59:59Z", bindings)).toBe(200);
+        expect(await statusAt("2025-04-06T07:59:59Z", env)).toBe(200);
       });
 
       it("serves maintenance from the start of the window", async () => {
-        expect(await statusAt("2025-04-06T08:00:00Z", bindings)).toBe(503);
-        expect(await statusAt("2025-04-06T09:59:59Z", bindings)).toBe(503);
+        expect(await statusAt("2025-04-06T08:00:00Z", env)).toBe(503);
+        expect(await statusAt("2025-04-06T09:59:59Z", env)).toBe(503);
       });
 
       it("passes traffic through from the end of the window", async () => {
-        expect(await statusAt("2025-04-06T10:00:00Z", bindings)).toBe(200);
-        expect(await statusAt("2025-04-07T00:00:00Z", bindings)).toBe(200);
+        expect(await statusAt("2025-04-06T10:00:00Z", env)).toBe(200);
+        expect(await statusAt("2025-04-07T00:00:00Z", env)).toBe(200);
       });
     });
   }
 
   it("serves maintenance at any time when enabled without a window", async () => {
-    const bindings = { MAINTENANCE_ENABLED: "true" };
-    expect(await statusAt("2025-04-06T07:00:00Z", bindings)).toBe(503);
-    expect(await statusAt("2030-01-01T00:00:00Z", bindings)).toBe(503);
+    expect(await statusAt("2025-04-06T07:00:00Z", { MAINTENANCE_ENABLED: "true" })).toBe(503);
+    expect(await statusAt("2030-01-01T00:00:00Z", { MAINTENANCE_ENABLED: "true" })).toBe(503);
   });
 
   it("passes traffic through when disabled without a window", async () => {
-    const bindings = { MAINTENANCE_ENABLED: "false" };
-    expect(await statusAt("2025-04-06T09:00:00Z", bindings)).toBe(200);
+    expect(await statusAt("2025-04-06T09:00:00Z", { MAINTENANCE_ENABLED: "false" })).toBe(200);
   });
 
-  it("falls back to MAINTENANCE_ENABLED when the window is unparseable", () => {
-    const at = new Date("2025-04-06T09:00:00Z");
-    const broken = {
-      MAINTENANCE_WINDOW_START: "not-a-date",
-      MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
-    };
-    expect(
-      loadWorker({ ...broken, MAINTENANCE_ENABLED: "true" }).isMaintenanceActive(at),
-    ).toBe(true);
-    expect(
-      loadWorker({ ...broken, MAINTENANCE_ENABLED: "false" }).isMaintenanceActive(at),
-    ).toBe(false);
+  it("falls back to MAINTENANCE_ENABLED when the window is unparseable", async () => {
+    const broken = { MAINTENANCE_WINDOW_START: "not-a-date", MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z" };
+    expect(await statusAt("2025-04-06T09:00:00Z", { ...broken, MAINTENANCE_ENABLED: "true" })).toBe(503);
+    expect(await statusAt("2025-04-06T09:00:00Z", { ...broken, MAINTENANCE_ENABLED: "false" })).toBe(200);
+  });
+});
+
+describe("Expected completion", () => {
+  it("shows the end of the window", async () => {
+    const response = await serve(window, request(), new Date("2025-04-06T09:00:00Z"));
+    const html = await response.text();
+    expect(html).toContain("Expected completion:");
+    expect(html).toContain("Sun, 06 Apr 2025 10:00:00 GMT");
+  });
+
+  it("is absent without a valid window", async () => {
+    for (const bounds of [
+      { MAINTENANCE_WINDOW_START: "", MAINTENANCE_WINDOW_END: "" },
+      { MAINTENANCE_WINDOW_START: "invalid", MAINTENANCE_WINDOW_END: "invalid" },
+    ]) {
+      expect(await maintenancePage(bounds)).not.toContain("Expected completion:");
+    }
   });
 });
 
 describe("Retry-After", () => {
-  async function retryAfterAt(iso, bindings) {
-    vi.useFakeTimers({ now: new Date(iso), toFake: ["Date"] });
-    try {
-      const response = await loadWorker(bindings).handleRequest(request());
-      return response.headers.get("Retry-After");
-    } finally {
-      vi.useRealTimers();
-    }
-  }
-
-  const window = {
-    MAINTENANCE_WINDOW_START: "2025-04-06T08:00:00Z",
-    MAINTENANCE_WINDOW_END: "2025-04-06T10:00:00Z",
-  };
+  const retryAfterAt = async (iso: string, env: Partial<Env>) =>
+    (await serve(env, request(), new Date(iso))).headers.get("Retry-After");
 
   it("counts down to the end of the window", async () => {
     expect(await retryAfterAt("2025-04-06T09:00:00Z", window)).toBe("3600");
@@ -212,51 +197,26 @@ describe("Retry-After", () => {
   });
 
   it("uses RETRY_AFTER without a window", async () => {
-    const at = "2025-04-06T09:00:00Z";
-    expect(await retryAfterAt(at, { RETRY_AFTER: "120" })).toBe("120");
+    expect(await retryAfterAt("2025-04-06T09:00:00Z", { RETRY_AFTER: "120" })).toBe("120");
   });
 
   it("falls back to an hour for a missing or invalid RETRY_AFTER", async () => {
-    const at = "2025-04-06T09:00:00Z";
-    for (const value of [undefined, "", "0", "-5", "soon"]) {
-      expect(await retryAfterAt(at, { RETRY_AFTER: value })).toBe("3600");
+    const env: Partial<Env> = { ...defaultEnv };
+    delete env.RETRY_AFTER;
+    expect(await retryAfterAt("2025-04-06T09:00:00Z", env)).toBe("3600");
+    for (const value of ["", "0", "-5", "soon"]) {
+      expect(await retryAfterAt("2025-04-06T09:00:00Z", { RETRY_AFTER: value })).toBe("3600");
     }
   });
 });
 
-describe("getMaintenanceWindowMessage", () => {
-  const message = (start, end) =>
-    loadWorker({
-      MAINTENANCE_WINDOW_START: start,
-      MAINTENANCE_WINDOW_END: end,
-    }).getMaintenanceWindowMessage();
-
-  it("shows the expected completion time", () => {
-    const result = message("2025-04-06T08:00:00Z", "2025-04-06T10:00:00Z");
-    expect(result).toContain("Expected completion:");
-    expect(result).toContain("Sun, 06 Apr 2025 10:00:00 GMT");
-  });
-
-  it("is empty without a valid window", () => {
-    expect(message("", "")).toBe("");
-    expect(message(null, null)).toBe("");
-    expect(message("invalid", "invalid")).toBe("");
-  });
-});
-
 describe("IP allowlist", () => {
-  async function bypasses(ip, allowed) {
-    const worker = loadWorker({ ALLOWED_IPS: allowed });
-    return (await worker.handleRequest(request({ ip }))).status === 200;
-  }
+  const bypasses = async (ip: string | undefined, allowed: string) =>
+    (await serve({ ALLOWED_IPS: allowed }, request(ip === undefined ? {} : { ip }))).status === 200;
 
   it("passes listed IPs through to the origin", async () => {
-    expect(await bypasses("192.168.1.1", '["192.168.1.1", "10.0.0.1"]')).toBe(
-      true,
-    );
-    expect(await bypasses("10.0.0.1", '["192.168.1.1", "10.0.0.1"]')).toBe(
-      true,
-    );
+    expect(await bypasses("192.168.1.1", '["192.168.1.1", "10.0.0.1"]')).toBe(true);
+    expect(await bypasses("10.0.0.1", '["192.168.1.1", "10.0.0.1"]')).toBe(true);
   });
 
   it("serves maintenance to other or missing IPs", async () => {
@@ -271,16 +231,14 @@ describe("IP allowlist", () => {
   });
 
   it("ignores X-Forwarded-For", async () => {
-    const worker = loadWorker({ ALLOWED_IPS: '["10.0.0.1"]' });
     const req = request({ ip: "203.0.113.9" });
     req.headers.set("X-Forwarded-For", "10.0.0.1");
-    expect((await worker.handleRequest(req)).status).toBe(503);
+    expect((await serve({ ALLOWED_IPS: '["10.0.0.1"]' }, req)).status).toBe(503);
   });
 });
 
 describe("isAllowedIp", () => {
-  const { isAllowedIp } = loadWorker();
-  const allowed = (ip, ...entries) => isAllowedIp(ip, entries);
+  const allowed = (ip: string | null, ...entries: unknown[]) => isAllowedIp(ip, entries);
 
   it("matches IPv4 CIDR ranges", () => {
     expect(allowed("192.168.0.42", "192.168.0.0/24")).toBe(true);
@@ -292,9 +250,7 @@ describe("isAllowedIp", () => {
   });
 
   it("matches IPv6 addresses in any spelling", () => {
-    expect(allowed("2001:db8::1", "2001:0db8:0000:0000:0000:0000:0000:0001")).toBe(
-      true,
-    );
+    expect(allowed("2001:db8::1", "2001:0db8:0000:0000:0000:0000:0000:0001")).toBe(true);
     expect(allowed("2001:DB8::1", "2001:db8::1")).toBe(true);
     expect(allowed("2001:db8::2", "2001:db8::1")).toBe(false);
     expect(allowed("::1", "0:0:0:0:0:0:0:1")).toBe(true);
@@ -338,8 +294,6 @@ describe("isAllowedIp", () => {
 // tests/worker.tftest.hcl checks the same entries against the allowed_ips
 // validation, so plan accepts exactly what the Worker can match.
 describe("allowlist entries shared with the OpenTofu validation", () => {
-  const { parseCidr } = loadWorker();
-
   it.each(allowedIpFixtures.valid)("accepts %s", (entry) => {
     expect(parseCidr(entry)).not.toBeNull();
   });
@@ -350,10 +304,8 @@ describe("allowlist entries shared with the OpenTofu validation", () => {
 });
 
 describe("Region allowlist", () => {
-  async function bypasses(country, allowed) {
-    const worker = loadWorker({ ALLOWED_REGIONS: allowed });
-    return (await worker.handleRequest(request({ country }))).status === 200;
-  }
+  const bypasses = async (country: string | null | undefined, allowed: string) =>
+    (await serve({ ALLOWED_REGIONS: allowed }, request(country === undefined ? {} : { country }))).status === 200;
 
   it("passes listed countries through to the origin", async () => {
     expect(await bypasses("US", '["US", "CA", "GB"]')).toBe(true);
@@ -375,10 +327,9 @@ describe("Region allowlist", () => {
 
 describe("Logo URL", () => {
   it("renders an HTTPS logo", async () => {
-    const html = await maintenancePage({
-      LOGO_URL: "https://example.com/logo.png",
-    });
-    expect(html).toContain('<img src="https://example.com/logo.png"');
+    expect(await maintenancePage({ LOGO_URL: "https://example.com/logo.png" })).toContain(
+      '<img src="https://example.com/logo.png"',
+    );
   });
 
   it("drops non-HTTPS logos", async () => {
@@ -394,35 +345,23 @@ describe("Logo URL", () => {
   });
 
   it("escapes the URL for its attribute instead of mangling it", async () => {
-    const html = await maintenancePage({
-      LOGO_URL: 'https://example.com/logo.png?a=1&b="x"<script>',
-    });
-    expect(html).toContain(
-      '<img src="https://example.com/logo.png?a=1&amp;b=&quot;x&quot;&lt;script&gt;"',
-    );
+    const html = await maintenancePage({ LOGO_URL: 'https://example.com/logo.png?a=1&b="x"<script>' });
+    expect(html).toContain('<img src="https://example.com/logo.png?a=1&amp;b=&quot;x&quot;&lt;script&gt;"');
     expect(html).not.toContain("<script>");
   });
 });
 
 describe("Maintenance page", () => {
   it("renders the configured title, message and contact", async () => {
-    const html = await maintenancePage({
-      MAINTENANCE_TITLE: "Custom Title",
-      MAINTENANCE_MESSAGE: "Custom message here",
-    });
+    const html = await maintenancePage({ MAINTENANCE_TITLE: "Custom Title", MAINTENANCE_MESSAGE: "Custom message here" });
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain("<title>Custom Title</title>");
     expect(html).toContain("<p>Custom message here</p>");
-    expect(html).toContain(
-      '<a href="mailto:test@example.com">test@example.com</a>',
-    );
+    expect(html).toContain('<a href="mailto:test@example.com">test@example.com</a>');
   });
 
   it("falls back to default title and message", async () => {
-    const html = await maintenancePage({
-      MAINTENANCE_TITLE: "",
-      MAINTENANCE_MESSAGE: "",
-    });
+    const html = await maintenancePage({ MAINTENANCE_TITLE: "", MAINTENANCE_MESSAGE: "" });
     expect(html).toContain("<title>Maintenance Mode</title>");
     expect(html).toContain("We are currently performing scheduled maintenance.");
   });
@@ -438,72 +377,57 @@ describe("Maintenance page", () => {
   });
 
   it("omits the contact line for an invalid email", async () => {
-    const html = await maintenancePage({ CONTACT_EMAIL: "not-an-email" });
-    expect(html).not.toContain("mailto:");
+    expect(await maintenancePage({ CONTACT_EMAIL: "not-an-email" })).not.toContain("mailto:");
   });
 
   it("includes custom CSS", async () => {
-    const html = await maintenancePage({
-      CUSTOM_CSS: "body { background: blue; } a > b { color: red; }",
-    });
-    expect(html).toContain("body { background: blue; } a > b { color: red; }");
+    const css = "body { background: blue; } a > b { color: red; }";
+    expect(await maintenancePage({ CUSTOM_CSS: css })).toContain(css);
   });
 
   // Every way out of <style> needs a "<", and none survives escapeCss.
-  for (const [name, css] of [
+  it.each([
     ["a plain close tag", "</style><script>x()</script>"],
     ["a close tag with a space", "</style ><script>x()</script>"],
     ["a close tag with a newline", "</style\n><script>x()</script>"],
     ["an uppercase close tag", "</STYLE><script>x()</script>"],
     ["a close tag rebuilt by removing a nested one", "</sty</style>le><script>x()</script>"],
     ["an HTML comment opener", "<!--</style><script>x()</script>-->"],
-  ]) {
-    it(`keeps custom CSS inside <style> against ${name}`, async () => {
-      const html = await maintenancePage({ CUSTOM_CSS: css });
-      expect(html.match(/<\/style/gi)).toHaveLength(1);
-      expect(html).not.toMatch(/<script/i);
-      expect(html).not.toContain("<!--");
-    });
-  }
+  ])("keeps custom CSS inside <style> against %s", async (_name, css) => {
+    const html = await maintenancePage({ CUSTOM_CSS: css });
+    expect(html.match(/<\/style/gi)).toHaveLength(1);
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toContain("<!--");
+  });
 
   it("writes < in custom CSS as a CSS escape", async () => {
-    const html = await maintenancePage({ CUSTOM_CSS: 'a::after { content: "<"; }' });
-    expect(html).toContain('a::after { content: "\\3C "; }');
+    expect(await maintenancePage({ CUSTOM_CSS: 'a::after { content: "<"; }' })).toContain(
+      'a::after { content: "\\3C "; }',
+    );
   });
 
   it("keeps Unicode content", async () => {
-    const html = await maintenancePage({
-      MAINTENANCE_TITLE: "Wartung 🔧",
-      MAINTENANCE_MESSAGE: "メンテナンス中です",
-    });
+    const html = await maintenancePage({ MAINTENANCE_TITLE: "Wartung 🔧", MAINTENANCE_MESSAGE: "メンテナンス中です" });
     expect(html).toContain("🔧");
     expect(html).toContain("メンテナンス中です");
   });
 
   it("sends 503 with no-cache and hardening headers", async () => {
-    const response = await loadWorker().handleRequest(request());
+    const response = await serve();
     expect(response.status).toBe(503);
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/html;charset=UTF-8",
-    );
+    expect(response.headers.get("Content-Type")).toBe("text/html;charset=UTF-8");
     expect(response.headers.get("Cache-Control")).toContain("no-store");
     expect(response.headers.get("Retry-After")).toBe("3600");
     const csp = response.headers.get("Content-Security-Policy");
-    for (const directive of [
-      "default-src 'none'",
-      "form-action 'none'",
-      "base-uri 'none'",
-      "frame-ancestors 'none'",
-    ]) {
+    for (const directive of ["default-src 'none'", "form-action 'none'", "base-uri 'none'", "frame-ancestors 'none'"]) {
       expect(csp).toContain(directive);
     }
     expect(response.headers.get("X-Frame-Options")).toBe("DENY");
   });
 
   it("passes traffic through when maintenance is disabled", async () => {
-    const worker = loadWorker({ MAINTENANCE_ENABLED: "false" });
-    const response = await worker.handleRequest(request());
+    const response = await serve({ MAINTENANCE_ENABLED: "false" });
     expect(response.status).toBe(200);
-    expect(worker.fetch).toHaveBeenCalledTimes(1);
+    expect(origin).toHaveBeenCalledTimes(1);
   });
 });

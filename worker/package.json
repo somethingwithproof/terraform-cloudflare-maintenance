@@ -1,0 +1,32 @@
+{
+  "name": "terraform-cloudflare-maintenance-worker",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Maintenance page Worker deployed by the terraform-cloudflare-maintenance module",
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist --minify=false --upload-source-maps=false",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "test:unit": "vitest run test/worker/worker.test.ts test/scripts",
+    "test:integration": "vitest run test/worker/integration.test.ts",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test/scripts",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.12",
+    "@cloudflare/workers-types": "5.20261101.1",
+    "@eslint/js": "10.0.1",
+    "@types/node": "^24.19.2",
+    "@vitest/coverage-istanbul": "5.1.0",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1",
+    "vitest": "5.1.0",
+    "wrangler": "4.156.1"
+  },
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  }
+}

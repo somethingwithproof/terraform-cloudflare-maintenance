@@ -25,13 +25,13 @@ env:
   TOFU_VERSION: "1.8.10"
 
 jobs:
-  # Unit tests for worker JavaScript
+  # Unit tests for the Worker and notify.sh
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: tests
+        working-directory: worker
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
@@ -43,7 +43,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: tests/package-lock.json
+          cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
@@ -54,17 +54,17 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
-          directory: tests/coverage
+          directory: worker/coverage
           flags: unit
           fail_ci_if_error: false
 
-  # Integration tests using Miniflare
+  # Integration tests through the Worker's fetch handler in workerd
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: tests
+        working-directory: worker
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
@@ -76,7 +76,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: tests/package-lock.json
+          cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
         run: npm ci --ignore-scripts
@@ -87,7 +87,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
         with:
-          directory: tests/coverage
+          directory: worker/coverage
           flags: integration
           fail_ci_if_error: false
 
@@ -242,12 +242,12 @@ jobs:
           tflint --init
           tflint -f compact
 
-      - name: Install test dependencies
-        working-directory: tests
+      - name: Install Worker dependencies
+        working-directory: worker
         run: npm ci --ignore-scripts
 
-      - name: Run ESLint on worker.js and tests
-        working-directory: tests
+      - name: Run ESLint on the Worker and its tests
+        working-directory: worker
         run: npm run lint
 
   # Test summary job
