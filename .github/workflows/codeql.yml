@@ -6,11 +6,10 @@ on:
     paths-ignore:
       - "**/*.php"
       - "**/*.md"
+  # No path filter on pull requests: the code scanning merge rule waits for
+  # CodeQL results on every pull request.
   pull_request:
     branches: [main, master, develop, regression-audit]
-    paths-ignore:
-      - "**/*.php"
-      - "**/*.md"
   schedule:
     - cron: "30 1 * * 1"
   workflow_dispatch:

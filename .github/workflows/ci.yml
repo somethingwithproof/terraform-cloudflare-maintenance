@@ -1,14 +1,12 @@
 name: OpenTofu CI
 
+# No path filters: these jobs are required status checks, so they must
+# report on every pull request, documentation-only ones included.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "**.md"
   workflow_dispatch:
 
 # Default permissions are read-only

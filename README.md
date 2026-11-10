@@ -275,29 +275,43 @@ For a complete list of outputs, see [outputs.tf](outputs.tf).
 The module itself has no backend so it can be reused anywhere. `deploy/` is
 the root configuration that `.github/workflows/cd.yml` applies, with state in
 HCP Terraform through an empty `cloud {}` block configured from the
-environment. The workflow runs on a `v*.*.*` tag (deploys `dev` with
-maintenance off) or from **Run workflow**, where you pick the environment,
-`enabled`, and an optional window. It checks its settings before `tofu init`
-and fails if any is missing, so it never applies with local state.
+environment. The workflows run in Local execution mode, which ignores HCP
+workspace variables, so every input comes from the GitHub environment. The
+workflow checks its settings before `tofu init` and fails if any is missing
+or malformed, so it never applies with local state or half its settings.
 
-Before the first run, set up:
+What a run deploys:
+
+- A `v*.*.*` tag push deploys `dev` with exactly the `dev` environment's
+  variables below. It never turns maintenance on or off by itself.
+- **Run workflow** deploys the chosen environment with the same variables,
+  and can override `enabled` and the window for that one run
+  (`enabled: environment` keeps the variable). The next run without
+  overrides goes back to the variables, so make lasting changes there.
+
+Set up once:
 
 | Where | Name | Value |
 |-------|------|-------|
 | Repository variable | `TF_CLOUD_ORGANIZATION` | HCP Terraform organization name |
-| Repository secret | `TF_API_TOKEN` | HCP Terraform team or user API token with access to the workspaces |
 | HCP Terraform workspaces | `cloudflare-maintenance-dev`, `cloudflare-maintenance-staging`, `cloudflare-maintenance-production` | CLI-driven workspaces with **Execution Mode: Local**, so runs happen in GitHub Actions and HCP stores state |
-| GitHub environments `dev`, `staging`, `production` (secrets) | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID` | Cloudflare token with the permissions above, account and zone IDs |
-| GitHub environments (variable) | `WORKER_ROUTE` | Route pattern, for example `example.com/*` |
+| GitHub environments `dev`, `staging`, `production` (secrets) | `TF_API_TOKEN` | HCP Terraform team token with access to that environment's workspace only, so a `dev` run cannot write `production` state |
+| | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID` | Cloudflare token with the permissions above, account and zone IDs |
+| GitHub environments (variables) | `WORKER_ROUTE` | Route pattern, for example `example.com/*` (required) |
+| | `MAINTENANCE_ENABLED` | `true` or `false`; unset means `false` |
+| | `MAINTENANCE_WINDOW` | JSON `{"start_time": "...", "end_time": "..."}` in RFC3339, or unset |
+| | `ALLOWED_IPS`, `ALLOWED_REGIONS` | JSON arrays of strings, for example `["192.0.2.0/24"]` and `["US"]`; unset means none |
+| | `CONTACT_EMAIL` | Address shown on the page; unset means none |
 
 Each environment deploys its own Worker, `maintenance-page-<environment>`, so
 the three workspaces can share one Cloudflare account without overwriting or
 deleting each other's Worker.
 
-Use GitHub environment protection rules (for example required reviewers on
-`production`) to gate applies. OpenTofu's `cloud` block speaks the HCP
-Terraform API; HCP officially supports only Terraform, so check that state
-upload works in the `dev` workspace first.
+The environments only accept deployments from `main` and `v*` tags, and
+`production` waits for a required reviewer. Tag creation for `v*` is limited
+to repository administrators by a tag ruleset. OpenTofu's `cloud` block
+speaks the HCP Terraform API; HCP officially supports only Terraform, so
+check that state upload works in the `dev` workspace first.
 
 `deploy/.terraform.lock.hcl` pins the provider builds for `linux_amd64`,
 `darwin_arm64` and `darwin_amd64`, and CI and CD run `tofu init
