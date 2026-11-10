@@ -16,7 +16,7 @@ A clear and concise description of what you want to happen.
 Show how this feature would be used:
 ```hcl
 module "maintenance" {
-  source = "thomasvincent/maintenance/cloudflare"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=vX.Y.Z"
   
   # Example of proposed feature usage
 }

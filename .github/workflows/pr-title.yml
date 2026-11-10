@@ -1,0 +1,28 @@
+name: Pull Request Title
+
+# Squash merges use the pull request title as the commit message, and
+# release-please computes the next version from those messages, so every
+# title must be a Conventional Commit: type(scope)!: summary.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  conventional-title:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+          if [[ "$TITLE" =~ ^($types)(\([a-z0-9._/-]+\))?!?:\ [^[:space:]].*$ ]]; then
+            echo "Conventional Commit title: $TITLE"
+            exit 0
+          fi
+          echo "::error::The title must be a Conventional Commit, for example 'fix(worker): escape the logo URL' or 'feat!: remove the schedules variable'. Allowed types: ${types//|/, }. A '!' before the colon marks a breaking change (a major release); see CONTRIBUTING.md."
+          exit 1

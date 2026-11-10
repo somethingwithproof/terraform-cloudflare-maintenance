@@ -1,0 +1,49 @@
+name: Release Please
+
+# Keeps a release pull request open with the next version, computed from the
+# Conventional Commit titles merged since the last release, and its
+# CHANGELOG entry. Merging that pull request tags vX.Y.Z and creates the
+# GitHub release; the tag push then deploys dev through cd.yml.
+#
+# Needs the RELEASE_PLEASE_TOKEN secret: a fine-grained token for this
+# repository with Contents and Pull requests read and write. GITHUB_TOKEN
+# cannot be used, because this repository does not let Actions create pull
+# requests and because pull requests it opens do not run the required checks.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check for the release token
+        id: token
+        env:
+          RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ -z "$RELEASE_PLEASE_TOKEN" ]; then
+            echo "::notice::RELEASE_PLEASE_TOKEN is not set, so no release pull request is opened or updated."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open or update the release pull request
+        if: steps.token.outputs.present == 'true'
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

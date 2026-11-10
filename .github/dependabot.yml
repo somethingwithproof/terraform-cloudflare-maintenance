@@ -85,6 +85,14 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    ignore:
+      # Types for the Node version CI runs (24); move with that version.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint supports TypeScript below 6.1; lift this when it
+      # supports 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-patch:
         update-types:
