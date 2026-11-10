@@ -341,6 +341,7 @@ Set up once:
 | | `CONTACT_EMAIL` | Address shown on the page; unset means none |
 | | `RUNTIME_TOGGLE` | `true` to create the runtime toggle; unset means `false` |
 | | `KV_NAMESPACE_ID` | For **Toggle maintenance**: the `runtime_toggle_namespace_id` output of the first deploy with `RUNTIME_TOGGLE=true` |
+| GitHub environments (secrets, for **Toggle maintenance**) | `CF_KV_API_TOKEN` | Cloudflare token with only **Account > Workers KV Storage: Edit**; the workflow fails without it |
 | GitHub environments (secrets, optional) | `MAINTENANCE_NOTIFY_URL` | Notification target for **Toggle maintenance**, in the notifications module's URL format |
 
 **Drift Detection** plans `dev` and `staging` every Monday with the same
@@ -442,7 +443,7 @@ namespace (output `runtime_toggle_namespace_id`) that the Worker reads on
 each request, so maintenance can be switched in about a minute:
 
 ```bash
-export CLOUDFLARE_API_TOKEN=...   # Workers KV Storage:Edit; read from your secret store
+export CF_KV_API_TOKEN=...   # Workers KV Storage:Edit only; read from your secret store
 export CF_ACCOUNT_ID=... KV_NAMESPACE_ID=$(tofu output -raw runtime_toggle_namespace_id)
 scripts/maintenance on --message "Database failover, back in 10 minutes"
 scripts/maintenance schedule 2030-04-06T08:00:00Z 2030-04-06T10:00:00Z
@@ -452,8 +453,10 @@ scripts/maintenance status
 ```
 
 The **Toggle maintenance** workflow runs the same script for a GitHub
-environment, with that environment's `CF_API_TOKEN`, `CF_ACCOUNT_ID` and
-`KV_NAMESPACE_ID`.
+environment, with that environment's `CF_KV_API_TOKEN`, `CF_ACCOUNT_ID` and
+`KV_NAMESPACE_ID`. `CF_KV_API_TOKEN` is a separate token with only
+**Account > Workers KV Storage: Edit**, so switching maintenance never
+handles the deploy token, which can change Workers, routes and rulesets.
 
 - **Precedence.** The override is one KV value. Each field it sets
   (`enabled`, `window`, `title`, `message`) replaces the Terraform value, and

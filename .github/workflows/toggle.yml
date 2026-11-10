@@ -63,7 +63,8 @@ jobs:
       group: toggle-${{ inputs.environment }}
       cancel-in-progress: false
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      # Workers KV Storage: Edit only; never the deploy token CF_API_TOKEN.
+      CF_KV_API_TOKEN: ${{ secrets.CF_KV_API_TOKEN }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
       NOTIFY_URL: ${{ secrets.MAINTENANCE_NOTIFY_URL }}
@@ -83,6 +84,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -z "$CF_KV_API_TOKEN" ]]; then
+            echo "::error::Set the environment secret CF_KV_API_TOKEN to a Cloudflare API token with only Account > Workers KV Storage: Edit."
+            exit 1
+          fi
           if [[ -z "$KV_NAMESPACE_ID" ]]; then
             echo "::error::Set the environment variable KV_NAMESPACE_ID to the module's runtime_toggle_namespace_id output (deploy with runtime_toggle.enabled = true)."
             exit 1

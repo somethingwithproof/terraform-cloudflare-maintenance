@@ -15,7 +15,8 @@
 #   status                         Print the stored override
 #
 # Environment:
-#   CLOUDFLARE_API_TOKEN   Token with Workers KV Storage: Edit on the account
+#   CF_KV_API_TOKEN        Token with only Workers KV Storage: Edit on the
+#                          account, not the deploy token
 #   CF_ACCOUNT_ID          Account ID
 #   KV_NAMESPACE_ID        The module's runtime_toggle_namespace_id output
 #   NOTIFY_URL             Optional notification target in the notifications
@@ -49,7 +50,7 @@ fail() {
   exit 1
 }
 
-: "${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}"
+: "${CF_KV_API_TOKEN:?set CF_KV_API_TOKEN to a token with only Workers KV Storage: Edit}"
 : "${CF_ACCOUNT_ID:?set CF_ACCOUNT_ID}"
 : "${KV_NAMESPACE_ID:?set KV_NAMESPACE_ID (the runtime_toggle_namespace_id output)}"
 # Both go into the URL path, so allow only what Cloudflare IDs look like.
@@ -65,7 +66,7 @@ trap 'rm -rf "$tmp"' EXIT
 cf() {
   local method=$1
   shift
-  printf 'header = "Authorization: Bearer %s"\n' "$CLOUDFLARE_API_TOKEN" |
+  printf 'header = "Authorization: Bearer %s"\n' "$CF_KV_API_TOKEN" |
     curl --config - -sS --max-time 30 --retry 2 -o "$tmp/response" \
       -w '%{http_code}' -X "$method" "$@" "$url"
 }
