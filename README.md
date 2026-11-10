@@ -400,19 +400,24 @@ tflint
 
 ## Testing
 
-This module includes comprehensive tests to ensure functionality and prevent regressions:
+None of the automated tests call the Cloudflare API:
 
-- **Unit Tests**: Test individual components of the worker script
-- **Integration Tests**: Verify the entire module works as expected
+- **OpenTofu tests** (`tests/*.tftest.hcl`): plan the module against a mocked
+  Cloudflare provider and assert on the planned resources, bindings and input
+  validation.
+- **Worker unit tests** (`tests/unit/`): run the shipped `worker.js` in a VM
+  context and assert on its functions and responses.
+- **Worker integration tests** (`tests/integration/`): run `worker.js` in
+  Miniflare.
+- **Examples**: CI runs `tofu validate` on every directory under `examples/`.
 
-To run the tests:
+The Terratest suite in `tests/e2e/` applies the module to a real zone and only
+runs from a manual `workflow_dispatch` with Cloudflare credentials.
 
 ```bash
-# Run unit tests for the worker
-cd worker && npm test
-
-# Run integration tests for the Terraform module
-cd tests/integration && go test -v
+tofu init -backend=false && tofu test   # OpenTofu tests
+cd tests && npm ci && npm test          # Worker unit and integration tests
+cd tests && npm run lint                # ESLint for worker.js and tests
 ```
 
 ## Contributing

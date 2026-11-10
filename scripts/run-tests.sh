@@ -224,12 +224,8 @@ run_terraform_tests() {
             $TF_CMD init -backend=false
         fi
 
-        # Run each test file
-        for test_file in tests/*.tftest.hcl; do
-            echo ""
-            echo -e "${YELLOW}Running: $(basename "$test_file")${NC}"
-            $TF_CMD test -filter="$test_file" || echo -e "${YELLOW}Warning: Some tests may have been skipped${NC}"
-        done
+        # Fail the run on any failing test; set -e stops the script here.
+        $TF_CMD test
 
         echo -e "${GREEN}Terraform tests completed!${NC}"
         echo ""

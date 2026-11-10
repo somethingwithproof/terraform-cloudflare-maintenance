@@ -73,7 +73,7 @@ updates:
           - "patch"
 
   # =============================================
-  # Go (terratest suite; tests/integration/go.mod has no requirements)
+  # Go (terratest suite)
   # =============================================
   - package-ecosystem: "gomod"
     cooldown:
