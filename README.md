@@ -254,6 +254,8 @@ graph TD
 | custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
 | logo_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
 | retry_after_seconds | `Retry-After` outside a window; inside one it is the time left | `number` | `3600` | no |
+| status_path | Path of the JSON status endpoint; `""` disables it | `string` | `"/__maintenance/status"` | no |
+| pages | Title and message overrides per hostname and path prefix | `list(object({host, path_prefix, title, message}))` | `[]` | no |
 
 For a complete list of variables, see [variables.tf](variables.tf).
 
@@ -388,6 +390,47 @@ apply is needed when the window opens or closes. After it closes, unset
 `maintenance_window` and apply to remove the route. `end_time` must be after
 `start_time`. The module schedules one window at a time; for recurring
 maintenance, have a scheduler set the next window and apply.
+
+## HTTP Responses
+
+While maintenance is on, every routed request that does not bypass gets:
+
+- `503 Service Unavailable` with `Content-Type: text/html; charset=utf-8`,
+  `Cache-Control: no-store, no-cache, must-revalidate` and `Retry-After`.
+  `HEAD` requests get the same status and headers without a body.
+- A Content Security Policy that allows only inline styles and HTTPS images
+  (`default-src 'none'`, `form-action 'none'`, `base-uri 'none'`,
+  `frame-ancestors 'none'`), plus `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY` and `Referrer-Policy: no-referrer`.
+
+`status_path` (default `/__maintenance/status`) answers `GET` and `HEAD` on
+every routed hostname, for everyone and whether maintenance is on or off,
+without contacting the origin:
+
+```json
+{"maintenance": true, "window": {"start_time": "2030-04-06T08:00:00.000Z", "end_time": "2030-04-06T10:00:00.000Z"}, "retry_after_seconds": 1800}
+```
+
+`window` is `null` without a scheduled window and `retry_after_seconds` is
+`null` while maintenance is off. Other methods get `405`. The response is
+`no-store` and allows any origin, so a status page can poll it; it holds no
+allowlist entries or contact details. It is only reachable while the route
+is deployed (see the table above). Set `status_path = ""` if the origin
+already serves that path.
+
+`pages` changes the title and message for particular hostnames or paths:
+
+```hcl
+pages = [
+  { host = "api.example.com", message = "The API is read-only until 10:00 UTC." },
+  { path_prefix = "/checkout", title = "Checkout is paused" },
+]
+```
+
+The most specific entry wins: an entry with a matching `host` beats one
+without, then the longest `path_prefix`. Prefixes match whole path segments
+(`/api` covers `/api/v1`, not `/apis`). Fields an entry leaves out fall back to
+`maintenance_title` and `maintenance_message`.
 
 ## Notification Integrations
 

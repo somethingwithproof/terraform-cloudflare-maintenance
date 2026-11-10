@@ -37,6 +37,8 @@ run "bindings_carry_page_settings" {
       MAINTENANCE_WINDOW_START = ""
       MAINTENANCE_WINDOW_END   = ""
       RETRY_AFTER              = "600"
+      STATUS_PATH              = "/__maintenance/status"
+      PAGES                    = "[]"
       ALLOWED_IPS              = jsonencode(["192.0.2.1", "198.51.100.0/24"])
       ALLOWED_REGIONS          = jsonencode(["US", "CA"])
     }
@@ -282,4 +284,105 @@ run "reject_zero_retry_after" {
   }
 
   expect_failures = [var.retry_after_seconds]
+}
+
+run "pages_and_status_path_reach_the_worker" {
+  command = plan
+
+  variables {
+    status_path = "/healthz/maintenance"
+    pages = [
+      { host = "api.example.com", message = "The API is down for maintenance." },
+      { path_prefix = "/shop", title = "Shop closed" },
+    ]
+  }
+
+  assert {
+    condition = {
+      for b in cloudflare_workers_script.maintenance.bindings : b.name => b.text if contains(["STATUS_PATH", "PAGES"], b.name)
+      } == {
+      STATUS_PATH = "/healthz/maintenance"
+      PAGES = jsonencode([
+        { host = "api.example.com", path_prefix = "/", title = null, message = "The API is down for maintenance." },
+        { host = null, path_prefix = "/shop", title = "Shop closed", message = null },
+      ])
+    }
+    error_message = "STATUS_PATH and PAGES should carry status_path and pages, with path_prefix defaulting to /"
+  }
+}
+
+run "status_endpoint_can_be_disabled" {
+  command = plan
+
+  variables {
+    status_path = ""
+  }
+
+  assert {
+    condition     = one([for b in cloudflare_workers_script.maintenance.bindings : b.text if b.name == "STATUS_PATH"]) == ""
+    error_message = "An empty status_path should reach the Worker as an empty STATUS_PATH"
+  }
+}
+
+run "reject_status_path_with_query" {
+  command = plan
+
+  variables {
+    status_path = "/status?x=1"
+  }
+
+  expect_failures = [var.status_path]
+}
+
+run "reject_relative_status_path" {
+  command = plan
+
+  variables {
+    status_path = "status"
+  }
+
+  expect_failures = [var.status_path]
+}
+
+run "reject_page_without_text" {
+  command = plan
+
+  variables {
+    pages = [{ path_prefix = "/api" }]
+  }
+
+  expect_failures = [var.pages]
+}
+
+run "reject_page_with_relative_prefix" {
+  command = plan
+
+  variables {
+    pages = [{ path_prefix = "api", title = "API" }]
+  }
+
+  expect_failures = [var.pages]
+}
+
+run "reject_page_with_uppercase_host" {
+  command = plan
+
+  variables {
+    pages = [{ host = "API.example.com", title = "API" }]
+  }
+
+  expect_failures = [var.pages]
+}
+
+run "reject_duplicate_pages" {
+  command = plan
+
+  variables {
+    pages = [
+      { path_prefix = "/api", title = "API" },
+      { path_prefix = "/api", message = "Again" },
+    ]
+  }
+
+  expect_failures = [var.pages]
 }

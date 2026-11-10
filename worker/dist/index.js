@@ -162,6 +162,58 @@ function parseIPv6(s) {
 }
 __name(parseIPv6, "parseIPv6");
 
+// src/pages.ts
+function optionalString(value) {
+  return typeof value === "string" && value !== "" ? value : void 0;
+}
+__name(optionalString, "optionalString");
+function parsePages(json) {
+  let list;
+  try {
+    list = JSON.parse(json ?? "[]");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(list)) return [];
+  const pages = [];
+  for (const entry of list) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const raw = entry;
+    const pathPrefix = optionalString(raw.path_prefix) ?? "/";
+    if (!pathPrefix.startsWith("/")) continue;
+    const page = { pathPrefix };
+    const host = optionalString(raw.host);
+    const title = optionalString(raw.title);
+    const message = optionalString(raw.message);
+    if (host !== void 0) page.host = host.toLowerCase();
+    if (title !== void 0) page.title = title;
+    if (message !== void 0) page.message = message;
+    pages.push(page);
+  }
+  return pages;
+}
+__name(parsePages, "parsePages");
+function matchesPath(pathname, prefix) {
+  if (prefix.endsWith("/")) return pathname.startsWith(prefix);
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+__name(matchesPath, "matchesPath");
+function selectPage(pages, url) {
+  let best;
+  let bestScore = -1;
+  for (const page of pages) {
+    if (page.host !== void 0 && page.host !== url.hostname) continue;
+    if (!matchesPath(url.pathname, page.pathPrefix)) continue;
+    const score = (page.host === void 0 ? 0 : 1 << 16) + page.pathPrefix.length;
+    if (score > bestScore) {
+      best = page;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+__name(selectPage, "selectPage");
+
 // src/schedule.ts
 function parseWindow(start, end) {
   if (!start || !end) return null;
@@ -201,9 +253,44 @@ __name(parseJsonList, "parseJsonList");
 
 // src/index.ts
 var CONTENT_SECURITY_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src https:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'";
+var PAGE_HEADERS = {
+  "Content-Type": "text/html; charset=utf-8",
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+  "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "no-referrer"
+};
+function statusResponse(request, status) {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return new Response(null, { status: 405, headers: { Allow: "GET, HEAD", "Cache-Control": "no-store" } });
+  }
+  const body = JSON.stringify(status);
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      // Lets a status page on another origin poll it.
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
+}
+__name(statusResponse, "statusResponse");
 async function handleRequest(request, env, now = /* @__PURE__ */ new Date()) {
   const window = parseWindow(env.MAINTENANCE_WINDOW_START, env.MAINTENANCE_WINDOW_END);
-  if (!isMaintenanceActive(env.MAINTENANCE_ENABLED === "true", window, now)) {
+  const active = isMaintenanceActive(env.MAINTENANCE_ENABLED === "true", window, now);
+  const retryAfter = retryAfterSeconds(window, env.RETRY_AFTER, now);
+  const url = new URL(request.url);
+  if (env.STATUS_PATH && url.pathname === env.STATUS_PATH) {
+    return statusResponse(request, {
+      maintenance: active,
+      window: window ? { start_time: window.start.toISOString(), end_time: window.end.toISOString() } : null,
+      retry_after_seconds: active ? retryAfter : null
+    });
+  }
+  if (!active) {
     return fetch(request);
   }
   if (isAllowedIp(request.headers.get("CF-Connecting-IP"), parseJsonList(env.ALLOWED_IPS))) {
@@ -213,25 +300,18 @@ async function handleRequest(request, env, now = /* @__PURE__ */ new Date()) {
   if (typeof country === "string" && parseJsonList(env.ALLOWED_REGIONS).includes(country)) {
     return fetch(request);
   }
+  const page = selectPage(parsePages(env.PAGES), url);
   const html = renderPage({
-    title: env.MAINTENANCE_TITLE ?? "",
-    message: env.MAINTENANCE_MESSAGE ?? "",
+    title: page?.title ?? env.MAINTENANCE_TITLE ?? "",
+    message: page?.message ?? env.MAINTENANCE_MESSAGE ?? "",
     contactEmail: env.CONTACT_EMAIL ?? "",
     customCss: env.CUSTOM_CSS ?? "",
     logoUrl: env.LOGO_URL ?? "",
     windowEnd: window?.end ?? null
   });
-  return new Response(html, {
+  return new Response(request.method === "HEAD" ? null : html, {
     status: 503,
-    headers: {
-      "Content-Type": "text/html;charset=UTF-8",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-      "Retry-After": String(retryAfterSeconds(window, env.RETRY_AFTER, now)),
-      "Content-Security-Policy": CONTENT_SECURITY_POLICY,
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "Referrer-Policy": "no-referrer"
-    }
+    headers: { ...PAGE_HEADERS, "Retry-After": String(retryAfter) }
   });
 }
 __name(handleRequest, "handleRequest");

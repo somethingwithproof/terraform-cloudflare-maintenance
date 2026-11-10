@@ -128,6 +128,43 @@ variable "retry_after_seconds" {
   }
 }
 
+variable "status_path" {
+  description = "Path of the JSON status endpoint the Worker answers on every routed hostname, for everyone and without contacting the origin: {maintenance, window, retry_after_seconds}. It holds no allowlist or contact data. Empty disables it."
+  type        = string
+  default     = "/__maintenance/status"
+
+  validation {
+    condition     = var.status_path == "" || can(regex("^/[A-Za-z0-9._~!$&'()*+,;=:@/-]*$", var.status_path))
+    error_message = "status_path must be empty or a URL path starting with \"/\", without a query or fragment."
+  }
+}
+
+variable "pages" {
+  description = "Page text for particular hostnames or paths, overriding maintenance_title and maintenance_message. The most specific entry wins: one with a matching host beats one without, then the longest path_prefix. path_prefix matches whole segments, so \"/api\" covers \"/api/v1\" but not \"/apis\"."
+  type = list(object({
+    host        = optional(string)
+    path_prefix = optional(string, "/")
+    title       = optional(string)
+    message     = optional(string)
+  }))
+  default = []
+
+  validation {
+    condition = alltrue([
+      for page in var.pages :
+      startswith(page.path_prefix, "/") &&
+      (page.host == null || can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?([.][a-z0-9]([a-z0-9-]*[a-z0-9])?)*$", page.host))) &&
+      (page.title != null || page.message != null)
+    ])
+    error_message = "Each page needs a path_prefix starting with \"/\", a lowercase hostname or no host, and a title or a message."
+  }
+
+  validation {
+    condition     = length(distinct([for page in var.pages : "${coalesce(page.host, "*")}${page.path_prefix}"])) == length(var.pages)
+    error_message = "Two pages have the same host and path_prefix."
+  }
+}
+
 variable "allowed_regions" {
   description = "List of country codes (ISO 3166-1 alpha-2) that can bypass the maintenance page"
   type        = list(string)

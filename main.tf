@@ -88,6 +88,16 @@ resource "cloudflare_workers_script" "maintenance" {
       text = tostring(var.retry_after_seconds)
     },
     {
+      name = "STATUS_PATH"
+      type = "plain_text"
+      text = var.status_path
+    },
+    {
+      name = "PAGES"
+      type = "plain_text"
+      text = jsonencode(var.pages)
+    },
+    {
       name = "ALLOWED_IPS"
       type = "secret_text"
       text = jsonencode(var.allowed_ips)
