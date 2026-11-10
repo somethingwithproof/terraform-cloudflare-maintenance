@@ -11,7 +11,7 @@ The machine running `tofu apply` needs `/bin/sh`, `curl` and `jq`.
 
 ```hcl
 module "maintenance_notifications" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git//modules/notifications?ref=v3.0.0" # x-release-please-version
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git//modules/notifications?ref=v4.0.0" # x-release-please-version
 
   # Keys are non-secret names; values are secrets.
   notification_urls = {
