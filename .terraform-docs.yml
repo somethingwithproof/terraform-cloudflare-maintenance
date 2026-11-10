@@ -1,7 +1,24 @@
+# terraform-docs configuration for the root module and, with
+# `-c ../../.terraform-docs.yml`, the notifications module. CI regenerates
+# both READMEs and fails if they differ from the committed ones.
 formatter: markdown table
+version: ">= 0.24.0, < 1.0.0"
+sections:
+  show:
+    - requirements
+    - providers
+    - resources
+    - inputs
+    - outputs
 output:
   file: README.md
   mode: inject
 sort:
   enabled: true
   by: required
+settings:
+  anchor: false
+  escape: true
+  hide-empty: true
+  html: false
+  lockfile: false

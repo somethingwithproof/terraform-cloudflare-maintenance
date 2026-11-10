@@ -24,8 +24,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
   - [Basic Usage](#basic-usage)
   - [Advanced Configuration](#advanced-configuration)
 - [Architecture](#architecture)
-- [Input Variables](#input-variables)
-- [Outputs](#outputs)
+- [Inputs and Outputs](#inputs-and-outputs)
 - [Deploying with HCP Terraform](#deploying-with-hcp-terraform)
 - [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
 - [Scheduled Maintenance Windows](#scheduled-maintenance-windows)
@@ -113,7 +112,7 @@ tofu apply
 provider "cloudflare" {} # reads CLOUDFLARE_API_TOKEN
 
 module "maintenance" {
-  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v3.0.0" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
@@ -136,7 +135,7 @@ For more advanced usage with scheduled maintenance windows, custom styling, and 
 
 ```hcl
 module "maintenance" {
-  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v3.0.0" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
@@ -178,7 +177,7 @@ See the [scheduled maintenance example](examples/scheduled-maintenance/) for a c
 
 ```hcl
 module "maintenance" {
-  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v3.0.0" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id
@@ -199,7 +198,7 @@ module "maintenance" {
 
 # Optional: Configure notifications
 module "maintenance_notifications" {
-  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance//modules/notifications"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git//modules/notifications?ref=v3.0.0" # x-release-please-version
 
   # Keys are non-secret names; the URLs are secrets.
   notification_urls = {
@@ -236,46 +235,77 @@ graph TD
     I -->|Outside Window| D
 ```
 
-## Input Variables
+## Inputs and Outputs
+
+Generated from `variables.tf` and `outputs.tf` by
+[terraform-docs](https://terraform-docs.io/); run `terraform-docs .` after
+changing them. CI fails when this section is stale.
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| terraform | >= 1.6.0 |
+| cloudflare | >= 5.19, < 6.0 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| cloudflare | >= 5.19, < 6.0 |
+
+## Resources
+
+| Name | Type |
+| ---- | ---- |
+| [cloudflare_ruleset.rate_limit](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/ruleset) | resource |
+| [cloudflare_workers_kv_namespace.toggle](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/workers_kv_namespace) | resource |
+| [cloudflare_workers_route.maintenance](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/workers_route) | resource |
+| [cloudflare_workers_script.maintenance](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/workers_script) | resource |
+
+## Inputs
 
 | Name | Description | Type | Default | Required |
-|------|-------------|------|---------|:--------:|
-| cloudflare_account_id | Cloudflare account ID | `string` | n/a | yes |
-| cloudflare_zone_id | Cloudflare zone ID for the domain | `string` | n/a | yes |
-| worker_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
-| enabled | Serve the maintenance page until disabled; ignored while `maintenance_window` is set | `bool` | `false` | no |
-| environment | Environment name (e.g., production, staging) | `string` | `"production"` | no |
-| script_name | Worker script name, unique per account; defaults to `maintenance-page-<environment>` | `string` | `null` | no |
-| maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
-| maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
-| contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
-| allowed_ips | IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page; no leading zeros in IPv4 octets, and IPv4-mapped IPv6 ranges need a prefix of at least 96 | `list(string)` | `[]` | no |
-| allowed_regions | List of ISO 3166-1 alpha-2 country codes that can bypass maintenance | `list(string)` | `[]` | no |
-| maintenance_window | Window in RFC3339; deploys the route and serves the page only from `start_time` (inclusive) to `end_time` (exclusive) | `object({start_time=string, end_time=string})` | `null` | no |
-| custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
-| logo_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
-| retry_after_seconds | `Retry-After` outside a window; inside one it is the time left | `number` | `3600` | no |
-| status_path | Path of the JSON status endpoint; `""` disables it | `string` | `"/__maintenance/status"` | no |
-| pages | Title and message overrides per hostname and path prefix | `list(object({host, path_prefix, title, message}))` | `[]` | no |
-| runtime_toggle | Switch maintenance at runtime through Workers KV; see [Runtime Toggle](#runtime-toggle) | `object({enabled, failure_mode, cache_ttl_seconds})` | `{enabled=false, failure_mode="open", cache_ttl_seconds=60}` | no |
-
-For a complete list of variables, see [variables.tf](variables.tf).
+| ---- | ----------- | ---- | ------- | :------: |
+| cloudflare\_account\_id | Cloudflare account ID | `string` | n/a | yes |
+| cloudflare\_zone\_id | Cloudflare zone ID | `string` | n/a | yes |
+| allowed\_ips | IPv4 or IPv6 addresses and CIDR ranges whose clients bypass the maintenance page. The Worker matches them against CF-Connecting-IP. | `list(string)` | `[]` | no |
+| allowed\_regions | List of country codes (ISO 3166-1 alpha-2) that can bypass the maintenance page | `list(string)` | `[]` | no |
+| contact\_email | Contact email to display on the maintenance page | `string` | `""` | no |
+| custom\_css | Custom CSS to apply to the maintenance page | `string` | `""` | no |
+| enabled | Serve the maintenance page until disabled. Ignored while maintenance\_window is set, which then decides when the page is served. | `bool` | `false` | no |
+| environment | Environment name (e.g., production, staging, development) | `string` | `"production"` | no |
+| logo\_url | URL to the logo to display on the maintenance page | `string` | `""` | no |
+| maintenance\_message | Message to display on the maintenance page | `string` | `"We are currently performing scheduled maintenance. We will be back shortly."` | no |
+| maintenance\_title | Title for the maintenance page | `string` | `"Maintenance Mode"` | no |
+| maintenance\_window | Scheduled maintenance window with RFC3339 start and end times. When set, the Worker route is deployed and the page is served only from start\_time (inclusive) to end\_time (exclusive), whether or not enabled is true. | ```object({ start_time = string end_time = string })``` | `null` | no |
+| pages | Page text for particular hostnames or paths, overriding maintenance\_title and maintenance\_message. The most specific entry wins: one with a matching host beats one without, then the longest path\_prefix. path\_prefix matches whole segments, so "/api" covers "/api/v1" but not "/apis". | ```list(object({ host = optional(string) path_prefix = optional(string, "/") title = optional(string) message = optional(string) }))``` | `[]` | no |
+| rate\_limit | Zone-wide rate limiting rule. Enabling it makes this module own the zone's http\_ratelimit entry-point ruleset; disabling it deletes that ruleset. Leave it disabled on zones whose rate limiting rules are managed elsewhere. | ```object({ enabled = optional(bool, false) requests_per_period = optional(number, 100) period = optional(number, 60) action = optional(string, "block") mitigation_timeout = optional(number, 600) counting_expression = optional(string, null) requests_to_origin = optional(bool, false) })``` | ```{ "action": "block", "counting_expression": null, "enabled": false, "mitigation_timeout": 600, "period": 60, "requests_per_period": 100, "requests_to_origin": false }``` | no |
+| retry\_after\_seconds | Retry-After the maintenance page sends outside a scheduled window, in seconds. Inside a window it is the time left until end\_time. | `number` | `3600` | no |
+| runtime\_toggle | Lets scripts/maintenance (or the Toggle maintenance workflow) switch maintenance on and off, set a window or change the text within about a minute, without an apply. Creates a Workers KV namespace the Worker reads on each request (cached at each edge location for cache\_ttl\_seconds), and keeps the route deployed while enabled. failure\_mode decides what happens if KV cannot be read or holds a malformed value: "open" passes traffic to the origin, "closed" serves the maintenance page. | ```object({ enabled = optional(bool, false) failure_mode = optional(string, "open") cache_ttl_seconds = optional(number, 60) })``` | `{}` | no |
+| script\_name | Name of the Worker script: 1-63 lowercase letters, digits or dashes, starting and ending with a letter or digit. Defaults to maintenance-page-<environment>. Must be unique per account: two module instances with the same name overwrite each other's Worker. | `string` | `null` | no |
+| status\_path | Path of the JSON status endpoint the Worker answers on every routed hostname, for everyone and without contacting the origin: {maintenance, window, retry\_after\_seconds}. It holds no allowlist or contact data. Empty disables it. | `string` | `"/__maintenance/status"` | no |
+| worker\_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
 
 ## Outputs
 
 | Name | Description |
-|------|-------------|
-| worker_id | The ID of the deployed worker script |
-| worker_name | The name of the deployed worker script |
-| worker_script_name | The name of the deployed worker script (alias) |
-| worker_route_pattern | Cloudflare route pattern for the maintenance page |
-| maintenance_status | SCHEDULED when a window is set, otherwise ENABLED or DISABLED |
-| maintenance_enabled | Whether maintenance mode is currently enabled |
+| ---- | ----------- |
+| allowed\_regions | List of allowed regions that can bypass maintenance |
 | environment | Environment name |
-| maintenance_window | Scheduled maintenance window if configured |
-| allowed_regions | List of allowed regions that can bypass maintenance |
-
-For a complete list of outputs, see [outputs.tf](outputs.tf).
+| maintenance\_enabled | Whether maintenance mode is currently enabled |
+| maintenance\_status | SCHEDULED when a maintenance window is set, otherwise ENABLED or DISABLED, as configured in Terraform. A runtime toggle override is not reflected; the status endpoint reports the live state. |
+| maintenance\_window | Scheduled maintenance window if configured |
+| rate\_limit\_enabled | Whether rate limiting is currently enabled |
+| rate\_limit\_ruleset\_id | The ID of the rate limiting ruleset |
+| runtime\_toggle\_namespace\_id | ID of the runtime toggle's Workers KV namespace, for scripts/maintenance (KV\_NAMESPACE\_ID); null unless runtime\_toggle.enabled |
+| worker\_id | The ID of the deployed worker script |
+| worker\_name | The name of the deployed worker script |
+| worker\_route | The route pattern for the maintenance worker |
+| worker\_route\_pattern | The route pattern for the maintenance worker (alias for compatibility) |
+| worker\_script\_name | The name of the deployed worker script (alias for compatibility) |
+<!-- END_TF_DOCS -->
 
 ## Deploying with HCP Terraform
 
@@ -554,13 +584,9 @@ npm run typecheck && npm run lint       # tsc --noEmit and typescript-eslint
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/amazing-feature`)
-3. Commit changes using Conventional Commits with emojis
-4. Push to the branch (`git push origin feat/amazing-feature`)
-5. Open a Pull Request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request titles, sign-off,
+the versioning and deprecation policy, and releases. Upgrade steps for each
+major release are in [UPGRADING.md](UPGRADING.md).
 
 ## License
 
