@@ -334,11 +334,11 @@ Set up once:
 | HCP Terraform workspaces | `cloudflare-maintenance-dev`, `cloudflare-maintenance-staging`, `cloudflare-maintenance-production` | CLI-driven workspaces with **Execution Mode: Local**, so runs happen in GitHub Actions and HCP stores state |
 | GitHub environments `dev`, `staging`, `production` (secrets) | `TF_API_TOKEN` | HCP Terraform team token with access to that environment's workspace only, so a `dev` run cannot write `production` state |
 | | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID` | Cloudflare token with the permissions above, account and zone IDs |
+| | `ALLOWED_IPS`, `ALLOWED_REGIONS` | JSON arrays of strings, for example `["192.0.2.0/24"]` and `["US"]`; unset means none. Secrets, because Actions logs on a public repository show variables to anyone, and these lists say who can bypass the page |
 | GitHub environments (variables) | `WORKER_ROUTE` | Route pattern, for example `example.com/*` (required) |
 | | `MAINTENANCE_ENABLED` | `true` or `false`; unset means `false` |
 | | `MAINTENANCE_WINDOW` | JSON `{"start_time": "...", "end_time": "..."}` in RFC3339, or unset |
-| | `ALLOWED_IPS`, `ALLOWED_REGIONS` | JSON arrays of strings, for example `["192.0.2.0/24"]` and `["US"]`; unset means none |
-| | `CONTACT_EMAIL` | Address shown on the page; unset means none |
+| | `CONTACT_EMAIL` | Address shown on the page; unset means none. A variable: the page publishes it anyway |
 | | `RUNTIME_TOGGLE` | `true` to create the runtime toggle; unset means `false` |
 | | `KV_NAMESPACE_ID` | For **Toggle maintenance**: the `runtime_toggle_namespace_id` output of the first deploy with `RUNTIME_TOGGLE=true` |
 | GitHub environments (secrets, optional) | `MAINTENANCE_NOTIFY_URL` | Notification target for **Toggle maintenance**, in the notifications module's URL format |

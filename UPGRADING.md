@@ -62,6 +62,7 @@ If you deploy with this repository's CD workflow:
 
 - Move `TF_API_TOKEN` from a repository secret to each GitHub environment,
   scoped to that environment's HCP workspace.
-- Set `MAINTENANCE_ENABLED`, `MAINTENANCE_WINDOW`, `ALLOWED_IPS`,
-  `ALLOWED_REGIONS` and `CONTACT_EMAIL` as environment variables; a tag
-  push deploys them unchanged instead of turning maintenance off.
+- Set `MAINTENANCE_ENABLED`, `MAINTENANCE_WINDOW` and `CONTACT_EMAIL` as
+  environment variables and `ALLOWED_IPS` and `ALLOWED_REGIONS` as
+  environment secrets; a tag push deploys them unchanged instead of turning
+  maintenance off.

@@ -7,8 +7,9 @@
 # Required: TF_CLOUD_ORGANIZATION, TF_TOKEN_app_terraform_io,
 #   CLOUDFLARE_API_TOKEN, TF_VAR_cloudflare_account_id,
 #   TF_VAR_cloudflare_zone_id, TF_VAR_worker_route.
-# Environment variables: ENV_ENABLED, ENV_WINDOW (JSON), ENV_ALLOWED_IPS and
-#   ENV_ALLOWED_REGIONS (JSON arrays), ENV_CONTACT_EMAIL, ENV_RUNTIME_TOGGLE.
+# Environment variables: ENV_ENABLED, ENV_WINDOW (JSON), ENV_CONTACT_EMAIL,
+#   ENV_RUNTIME_TOGGLE. Environment secrets: ENV_ALLOWED_IPS and
+#   ENV_ALLOWED_REGIONS (JSON arrays), masked again in their normalized form.
 # One-run overrides (cd.yml dispatch): INPUT_ENABLED (environment, true or
 #   false), INPUT_WINDOW_START and INPUT_WINDOW_END, INPUT_CLEAR_WINDOW.
 # DEPLOY_SETTINGS_MODE=plan reports missing required settings as a notice
@@ -58,12 +59,15 @@ if [[ -n "$window" ]]; then
   setvar maintenance_window "$window"
 fi
 
-# setlist TFVAR NAME VALUE: a JSON array of strings, if set.
+# setlist TFVAR NAME VALUE: a JSON array of strings, if set. The value is a
+# secret, and Actions masks only its exact text, so the reformatted list is
+# masked too before it reaches GITHUB_ENV and later steps' logs.
 setlist() {
   [[ -n "$3" ]] || return 0
   local list
   list=$(jq -ce 'select(type == "array" and all(.[]; type == "string"))' <<<"$3") ||
     fail "$2 must be a JSON array of strings."
+  echo "::add-mask::$list"
   setvar "$1" "$list"
 }
 setlist allowed_ips ALLOWED_IPS "${ENV_ALLOWED_IPS:-}"

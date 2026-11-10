@@ -58,8 +58,8 @@ jobs:
       TF_VAR_environment: ${{ matrix.environment }}
       ENV_ENABLED: ${{ vars.MAINTENANCE_ENABLED }}
       ENV_WINDOW: ${{ vars.MAINTENANCE_WINDOW }}
-      ENV_ALLOWED_IPS: ${{ vars.ALLOWED_IPS }}
-      ENV_ALLOWED_REGIONS: ${{ vars.ALLOWED_REGIONS }}
+      ENV_ALLOWED_IPS: ${{ secrets.ALLOWED_IPS }}
+      ENV_ALLOWED_REGIONS: ${{ secrets.ALLOWED_REGIONS }}
       ENV_CONTACT_EMAIL: ${{ vars.CONTACT_EMAIL }}
       ENV_RUNTIME_TOGGLE: ${{ vars.RUNTIME_TOGGLE }}
       ENVIRONMENT: ${{ matrix.environment }}
