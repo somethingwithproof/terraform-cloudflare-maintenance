@@ -242,6 +242,7 @@ graph TD
 | worker_route | URL pattern to trigger the maintenance worker | `string` | `"*.example.com/*"` | no |
 | enabled | Serve the maintenance page until disabled; ignored while `maintenance_window` is set | `bool` | `false` | no |
 | environment | Environment name (e.g., production, staging) | `string` | `"production"` | no |
+| script_name | Worker script name, unique per account; defaults to `maintenance-page-<environment>` | `string` | `null` | no |
 | maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
 | maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
 | contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
@@ -288,6 +289,10 @@ Before the first run, set up:
 | HCP Terraform workspaces | `cloudflare-maintenance-dev`, `cloudflare-maintenance-staging`, `cloudflare-maintenance-production` | CLI-driven workspaces with **Execution Mode: Local**, so runs happen in GitHub Actions and HCP stores state |
 | GitHub environments `dev`, `staging`, `production` (secrets) | `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `CF_ZONE_ID` | Cloudflare token with the permissions above, account and zone IDs |
 | GitHub environments (variable) | `WORKER_ROUTE` | Route pattern, for example `example.com/*` |
+
+Each environment deploys its own Worker, `maintenance-page-<environment>`, so
+the three workspaces can share one Cloudflare account without overwriting or
+deleting each other's Worker.
 
 Use GitHub environment protection rules (for example required reviewers on
 `production`) to gate applies. OpenTofu's `cloud` block speaks the HCP
@@ -407,7 +412,12 @@ None of the automated tests call the Cloudflare API:
 - **Examples**: CI runs `tofu validate` on every directory under `examples/`.
 
 The Terratest suite in `tests/e2e/` applies the module to a real zone and only
-runs from a manual `workflow_dispatch` with Cloudflare credentials.
+runs from a manual `workflow_dispatch` with the `CF_E2E_*` settings for a
+dedicated test zone. Every test copies the module to its own temporary
+directory and deploys a uniquely named Worker on a unique hostname, so the
+tests run in parallel without sharing state. The rate limiting test runs only
+when `CF_E2E_RATE_LIMIT_ZONE_ID` names a throwaway zone, because it deletes
+that zone's rate limiting rules.
 
 ```bash
 tofu init -backend=false && tofu test   # OpenTofu tests
