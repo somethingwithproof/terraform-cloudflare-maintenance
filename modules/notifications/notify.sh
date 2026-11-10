@@ -37,6 +37,23 @@ if [ "${NOTIFY_MODE:-send}" = record ]; then
 fi
 
 : "${NOTIFY_URL:?}" "${NOTIFY_STATUS:?}"
+
+# The URL ends up in a quoted curl config line (see post), where whitespace,
+# a quote or a backslash could end the value or add options. The module's
+# variable validation rejects them on the apply path; this check covers
+# every caller, scripts/maintenance included.
+case "$NOTIFY_URL" in
+*[[:space:][:cntrl:]\"\\]*)
+  echo "notify.sh: the notification URL must not contain whitespace, control characters, quotes or backslashes" >&2
+  exit 1
+  ;;
+slack://?* | pagerduty://?* | webhook://https://?*) ;;
+*)
+  echo "notify.sh: unsupported notification URL scheme" >&2
+  exit 1
+  ;;
+esac
+
 schedule=${NOTIFY_SCHEDULE:-}
 environment=${NOTIFY_ENVIRONMENT:-}
 start=${NOTIFY_START:-}
@@ -108,10 +125,6 @@ webhook://https://*)
       maintenance_window: {start_time: $start, end_time: $end}
     }' >"$body"
   post "${NOTIFY_URL#webhook://}"
-  ;;
-*)
-  echo "notify.sh: unsupported notification URL scheme" >&2
-  exit 1
   ;;
 esac
 
