@@ -44,12 +44,16 @@ variable "allowed_ips" {
   description = "IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page"
   type        = list(string)
   default     = []
+  # From environment secrets; keeps the list out of plan output.
+  sensitive = true
 }
 
 variable "allowed_regions" {
   description = "ISO 3166-1 alpha-2 country codes that bypass the maintenance page"
   type        = list(string)
   default     = []
+  # From environment secrets; keeps the list out of plan output.
+  sensitive = true
 }
 
 variable "contact_email" {

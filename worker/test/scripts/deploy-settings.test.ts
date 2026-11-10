@@ -73,6 +73,18 @@ describe("deploy-settings.sh", () => {
     expect(result.output).toBe("ready=true\n");
   });
 
+  it("masks the reformatted allowlists, which come from secrets", () => {
+    const result = resolve({ ...required, ENV_ALLOWED_IPS: '[ "192.0.2.1" ]', ENV_ALLOWED_REGIONS: '["US",\n "CA"]' });
+    expect(result.stdout.split("\n")).toEqual(
+      expect.arrayContaining(['::add-mask::["192.0.2.1"]', '::add-mask::["US","CA"]']),
+    );
+    expect(result.vars.TF_VAR_allowed_ips).toBe('["192.0.2.1"]');
+  });
+
+  it("masks nothing else", () => {
+    expect(resolve({ ...required, ENV_CONTACT_EMAIL: "ops@example.com" }).stdout).not.toContain("::add-mask::");
+  });
+
   it("defaults to maintenance off, no window and no toggle", () => {
     expect(resolve(required).vars).toEqual({ TF_VAR_enabled: "false", TF_VAR_runtime_toggle: "false" });
   });
