@@ -25,7 +25,7 @@ updates:
           - "patch"
 
   # =============================================
-  # Terraform (root module, local modules and the deploy root)
+  # Terraform (root module and local modules: provider constraints)
   # =============================================
   - package-ecosystem: "terraform"
     cooldown:
@@ -33,7 +33,6 @@ updates:
     directories:
       - "/"
       - "/modules/notifications"
-      - "/deploy"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -44,6 +43,27 @@ updates:
       include: "scope"
     groups:
       terraform-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # =============================================
+  # OpenTofu (deploy root: provider lock file for registry.opentofu.org)
+  # =============================================
+  - package-ecosystem: "opentofu"
+    cooldown:
+      default-days: 7
+    directory: "/deploy"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      opentofu-minor-patch:
         update-types:
           - "minor"
           - "patch"

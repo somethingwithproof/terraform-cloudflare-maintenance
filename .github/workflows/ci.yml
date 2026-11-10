@@ -65,11 +65,16 @@ jobs:
           tofu_version: 1.8.10
           tofu_wrapper: false
 
-      # -backend=false skips the HCP Terraform cloud block in deploy/.
+      # -backend=false skips the HCP Terraform cloud block in deploy/. deploy/
+      # has a committed lock file that must cover its providers unchanged.
       - name: Validate
         working-directory: ${{ matrix.dir }}
         run: |
-          tofu init -backend=false
+          if [[ -f .terraform.lock.hcl ]]; then
+            tofu init -backend=false -lockfile=readonly
+          else
+            tofu init -backend=false
+          fi
           tofu validate
 
   tflint:

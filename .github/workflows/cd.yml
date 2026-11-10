@@ -107,8 +107,9 @@ jobs:
           printf 'TF_VAR_maintenance_window={"start_time":"%s","end_time":"%s"}\n' \
             "$WINDOW_START" "$WINDOW_END" >> "$GITHUB_ENV"
 
+      # The committed lock file pins the provider build; never change it here.
       - name: OpenTofu Init
-        run: tofu init
+        run: tofu init -lockfile=readonly
 
       - name: OpenTofu Plan
         run: tofu plan -out=tfplan

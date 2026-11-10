@@ -87,6 +87,12 @@ All notable changes to this module are documented here. The format follows
   any spelling and treats IPv4-mapped IPv6 as IPv4. Entries are validated at
   plan time.
 
+### Security
+
+- `deploy/.terraform.lock.hcl` is committed for linux_amd64, darwin_arm64 and
+  darwin_amd64 and CI and CD initialize with `-lockfile=readonly`, so CD
+  can no longer pick up an unreviewed provider build.
+
 ### Fixed
 
 - The `maintenance_status` and `maintenance_window` outputs depend on the
