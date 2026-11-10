@@ -345,6 +345,7 @@ Set up once:
 | | `KV_NAMESPACE_ID` | For **Toggle maintenance**: the `runtime_toggle_namespace_id` output of the first deploy with `RUNTIME_TOGGLE=true` |
 | GitHub environments (secrets, for **Toggle maintenance**) | `CF_KV_API_TOKEN` | Cloudflare token with only **Account > Workers KV Storage: Edit**; the workflow fails without it |
 | GitHub environments (secrets, optional) | `MAINTENANCE_NOTIFY_URL` | Notification target for **Toggle maintenance**, in the notifications module's URL format |
+| GitHub environments (variables, optional) | `MAINTENANCE_NOTIFY_SCHEDULE` | The notifications module's `schedule_name`, so **Toggle maintenance** shares its PagerDuty incident; unset means `runtime-toggle` |
 
 **Drift Detection** plans `dev` and `staging` every Monday with the same
 settings and keeps one issue per environment open while Cloudflare or the
@@ -475,11 +476,15 @@ handles the deploy token, which can change Workers, routes and rulesets.
   Terraform has it on; `"closed"` serves the maintenance page. A missing value is not a failure:
   Terraform's settings apply.
 - **Notifications.** With `NOTIFY_URL` (or the `MAINTENANCE_NOTIFY_URL`
-  environment secret) set, `on` triggers, `off` and `clear` resolve and
-  `schedule` informs Slack and webhooks without paging. The PagerDuty dedup
-  key is `terraform-cloudflare-maintenance/<environment>/<NOTIFY_SCHEDULE>`
-  (default schedule `runtime-toggle`); set `NOTIFY_SCHEDULE` to a schedule
-  name of the notifications module to share its incident.
+  environment secret) set, `on` triggers and `off` and `clear` resolve.
+  `schedule` resolves as well, because the page is down only inside the
+  window, or triggers if the window has already started; Slack and webhooks
+  hear of every command. The PagerDuty dedup key is
+  `terraform-cloudflare-maintenance/<environment>/<NOTIFY_SCHEDULE>`
+  (default schedule `runtime-toggle`). Set `NOTIFY_SCHEDULE` (for the
+  workflow, the `MAINTENANCE_NOTIFY_SCHEDULE` environment variable) to the
+  notifications module's `schedule_name` so a toggle resolves the incident
+  an apply opened, and the reverse.
 - **Cost and latency.** The route stays deployed while the toggle is
   enabled, so the Worker runs on every request to the route even when
   maintenance is off: every request counts toward Workers requests billing,

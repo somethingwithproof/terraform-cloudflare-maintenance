@@ -77,7 +77,9 @@ opens or closes, so the module cannot trigger at the start of a window or
 resolve at its end. To page for a window, set the status to `ACTIVE` (or
 `ENABLED`) and apply when it starts, and `COMPLETED` when it ends, or use the
 runtime toggle in `scripts/maintenance`, which sends the same events under the
-same key.
+same key when `NOTIFY_ENVIRONMENT` and `NOTIFY_SCHEDULE` match `environment`
+and `schedule_name` (the Toggle maintenance workflow takes `NOTIFY_SCHEDULE`
+from the `MAINTENANCE_NOTIFY_SCHEDULE` environment variable).
 
 ## Inputs and Outputs
 
@@ -117,7 +119,7 @@ here after changing `variables.tf` or `outputs.tf`.
 
 | Name | Description |
 | ---- | ----------- |
-| dedup\_key | PagerDuty dedup key for this environment and schedule. scripts/maintenance uses the same key, so a toggle can resolve an incident an apply opened. |
+| dedup\_key | PagerDuty dedup key for this environment and schedule. scripts/maintenance uses the same key when NOTIFY\_ENVIRONMENT and NOTIFY\_SCHEDULE match environment and schedule\_name (the Toggle maintenance workflow sets them from the environment name and its MAINTENANCE\_NOTIFY\_SCHEDULE variable), so a toggle can resolve an incident an apply opened. |
 | event\_action | PagerDuty event action this status sends: trigger, resolve or none |
 | notification\_count | Number of notification targets configured |
 | notification\_types | Notification type (slack, pagerduty or webhook) for each target name |

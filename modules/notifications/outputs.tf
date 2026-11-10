@@ -15,6 +15,6 @@ output "event_action" {
 }
 
 output "dedup_key" {
-  description = "PagerDuty dedup key for this environment and schedule. scripts/maintenance uses the same key, so a toggle can resolve an incident an apply opened."
+  description = "PagerDuty dedup key for this environment and schedule. scripts/maintenance uses the same key when NOTIFY_ENVIRONMENT and NOTIFY_SCHEDULE match environment and schedule_name (the Toggle maintenance workflow sets them from the environment name and its MAINTENANCE_NOTIFY_SCHEDULE variable), so a toggle can resolve an incident an apply opened."
   value       = local.dedup_key
 }

@@ -128,6 +128,7 @@ describe("scripts/maintenance", () => {
 
   it.each([
     ["an inverted window", ["2030-04-06T10:00:00Z", "2030-04-06T08:00:00Z"]],
+    ["a window that has ended", ["2020-04-06T08:00:00Z", "2020-04-06T10:00:00Z"]],
     ["a non-UTC time", ["2030-04-06T08:00:00+02:00", "2030-04-06T10:00:00Z"]],
     ["a date only", ["2030-04-06", "2030-04-07"]],
   ])("rejects %s without writing", (_name, times) => {
@@ -200,10 +201,29 @@ describe("scripts/maintenance", () => {
       expect(event(run(["clear"], notify).notifications[0])).toMatchObject({ event_action: "resolve", dedup_key: key });
     });
 
-    it("do not page for a scheduled window", () => {
+    it("resolve for a window that has not started, ending an earlier on", () => {
+      const key = "terraform-cloudflare-maintenance/production/runtime-toggle";
+      expect(event(run(["on"], notify).notifications[0])).toMatchObject({ event_action: "trigger", dedup_key: key });
       const result = run(["schedule", "2030-04-06T08:00:00Z", "2030-04-06T10:00:00Z"], notify);
       expect(result.status).toBe(0);
-      expect(result.notifications).toEqual([]);
+      expect(result.notifications.map(event)).toEqual([{ routing_key: "routing-key", event_action: "resolve", dedup_key: key }]);
+    });
+
+    it("trigger for a window that has already started", () => {
+      const result = run(["schedule", "2020-01-01T00:00:00Z", "2099-01-01T00:00:00Z"], notify);
+      expect(result.status).toBe(0);
+      expect(event(result.notifications[0])).toMatchObject({
+        event_action: "trigger",
+        payload: { custom_details: { status: "ACTIVE", start_time: "2020-01-01T00:00:00Z" } },
+      });
+    });
+
+    it("tell Slack about a scheduled window", () => {
+      const result = run(["schedule", "2030-04-06T08:00:00Z", "2030-04-06T10:00:00Z"], {
+        ...notify,
+        NOTIFY_URL: "slack://T000/B000/XXXX",
+      });
+      expect(event(result.notifications[0]).text).toBe("Maintenance SCHEDULED");
     });
 
     it("use NOTIFY_SCHEDULE in the dedup key", () => {
