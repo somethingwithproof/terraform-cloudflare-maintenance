@@ -4,7 +4,7 @@
   "include-component-in-tag": false,
   "include-v-in-tag": true,
   "bump-minor-pre-major": false,
-  "last-release-sha": "449a68f0f37a4cfa33f799588585f3d8261d8ae4",
+  "last-release-sha": "302ac320021730a692fddf80b6e06f46edf895f1",
   "signoff": "Thomas Vincent <thomasvincent@gmail.com>",
   "packages": {
     ".": {
