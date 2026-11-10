@@ -7,6 +7,7 @@ import allowedIpFixtures from "../../../tests/fixtures/allowed-ips.json";
 import { escapeHtml, isValidHttpsUrl, sanitizeEmail } from "../../src/html";
 import { type Env, handleRequest } from "../../src/index";
 import { isAllowedIp, parseCidr } from "../../src/ip";
+import { parsePages, selectPage } from "../../src/pages";
 
 const defaultEnv: Env = {
   MAINTENANCE_ENABLED: "true",
@@ -20,6 +21,8 @@ const defaultEnv: Env = {
   RETRY_AFTER: "3600",
   ALLOWED_IPS: "[]",
   ALLOWED_REGIONS: "[]",
+  STATUS_PATH: "/__maintenance/status",
+  PAGES: "[]",
 };
 
 const window = {
@@ -45,6 +48,10 @@ function request({ ip, country }: { ip?: string; country?: string | null } = {})
     (init as { cf?: unknown }).cf = { country };
   }
   return new Request("https://example.com/", init);
+}
+
+function at(url: string, init: RequestInit = {}): Request {
+  return new Request(url, init);
 }
 
 function serve(env: Partial<Env> = {}, req: Request = request(), now?: Date): Promise<Response> {
@@ -415,7 +422,7 @@ describe("Maintenance page", () => {
   it("sends 503 with no-cache and hardening headers", async () => {
     const response = await serve();
     expect(response.status).toBe(503);
-    expect(response.headers.get("Content-Type")).toBe("text/html;charset=UTF-8");
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     expect(response.headers.get("Cache-Control")).toContain("no-store");
     expect(response.headers.get("Retry-After")).toBe("3600");
     const csp = response.headers.get("Content-Security-Policy");
@@ -429,5 +436,137 @@ describe("Maintenance page", () => {
     const response = await serve({ MAINTENANCE_ENABLED: "false" });
     expect(response.status).toBe(200);
     expect(origin).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("HEAD requests", () => {
+  it("get the maintenance status and headers without a body", async () => {
+    const response = await serve({}, at("https://example.com/", { method: "HEAD" }));
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("3600");
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
+    expect(await response.text()).toBe("");
+  });
+});
+
+describe("Status endpoint", () => {
+  const status = async (env: Partial<Env>, now: string, init: RequestInit = {}, path = "/__maintenance/status") =>
+    serve(env, at(`https://example.com${path}`, init), new Date(now));
+
+  it("reports active maintenance with the time to retry", async () => {
+    const response = await status({}, "2025-04-06T09:00:00Z");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({ maintenance: true, window: null, retry_after_seconds: 3600 });
+  });
+
+  it("reports a scheduled window before it starts", async () => {
+    const response = await status({ ...window, MAINTENANCE_ENABLED: "false" }, "2025-04-06T07:00:00Z");
+    expect(await response.json()).toEqual({
+      maintenance: false,
+      window: { start_time: "2025-04-06T08:00:00.000Z", end_time: "2025-04-06T10:00:00.000Z" },
+      retry_after_seconds: null,
+    });
+  });
+
+  it("counts down inside the window", async () => {
+    const body = await (await status(window, "2025-04-06T09:30:00Z")).json();
+    expect(body).toMatchObject({ maintenance: true, retry_after_seconds: 1800 });
+  });
+
+  it("is answered for allowlisted clients without reaching the origin", async () => {
+    const req = at("https://example.com/__maintenance/status", { headers: { "CF-Connecting-IP": "192.0.2.1" } });
+    const response = await serve({ ALLOWED_IPS: '["192.0.2.1"]' }, req);
+    expect(await response.json()).toMatchObject({ maintenance: true });
+    expect(origin).not.toHaveBeenCalled();
+  });
+
+  it("is answered while maintenance is off without reaching the origin", async () => {
+    const response = await status({ MAINTENANCE_ENABLED: "false" }, "2025-04-06T09:00:00Z");
+    expect(await response.json()).toEqual({ maintenance: false, window: null, retry_after_seconds: null });
+    expect(origin).not.toHaveBeenCalled();
+  });
+
+  it("never exposes allowlists or the contact address", async () => {
+    const text = await (
+      await status({ ALLOWED_IPS: '["192.0.2.1"]', ALLOWED_REGIONS: '["US"]' }, "2025-04-06T09:00:00Z")
+    ).text();
+    expect(text).not.toContain("192.0.2.1");
+    expect(text).not.toContain("US");
+    expect(text).not.toContain("test@example.com");
+  });
+
+  it("answers HEAD without a body and refuses other methods", async () => {
+    const head = await status({}, "2025-04-06T09:00:00Z", { method: "HEAD" });
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe("");
+    const post = await status({}, "2025-04-06T09:00:00Z", { method: "POST" });
+    expect(post.status).toBe(405);
+    expect(post.headers.get("Allow")).toBe("GET, HEAD");
+  });
+
+  it("uses the configured path and only that path", async () => {
+    expect((await status({ STATUS_PATH: "/healthz" }, "2025-04-06T09:00:00Z", {}, "/healthz")).status).toBe(200);
+    expect((await status({ STATUS_PATH: "/healthz" }, "2025-04-06T09:00:00Z")).status).toBe(503);
+    expect((await status({}, "2025-04-06T09:00:00Z", {}, "/__maintenance/status/x")).status).toBe(503);
+  });
+
+  it("is off when STATUS_PATH is empty", async () => {
+    expect((await status({ STATUS_PATH: "" }, "2025-04-06T09:00:00Z")).status).toBe(503);
+  });
+});
+
+describe("Per-host and per-path pages", () => {
+  const pages = JSON.stringify([
+    { host: "api.example.com", path_prefix: "/", title: null, message: "The API is down." },
+    { host: null, path_prefix: "/shop", title: "Shop closed", message: null },
+    { host: "api.example.com", path_prefix: "/v2", title: "API v2 upgrade", message: "v2 is moving." },
+  ]);
+  const page = async (url: string) => (await serve({ PAGES: pages }, at(url))).text();
+
+  it("uses the default text where nothing matches", async () => {
+    const html = await page("https://example.com/");
+    expect(html).toContain("<title>Test Maintenance</title>");
+    expect(html).toContain("<p>We are under maintenance</p>");
+  });
+
+  it("matches whole path segments", async () => {
+    expect(await page("https://example.com/shop/cart")).toContain("<title>Shop closed</title>");
+    expect(await page("https://example.com/shop")).toContain("<title>Shop closed</title>");
+    expect(await page("https://example.com/shopping")).toContain("<title>Test Maintenance</title>");
+  });
+
+  it("falls back to the default for fields a page leaves out", async () => {
+    const html = await page("https://example.com/shop");
+    expect(html).toContain("<p>We are under maintenance</p>");
+  });
+
+  it("prefers a host match, then the longest prefix", async () => {
+    const api = await page("https://api.example.com/shop");
+    expect(api).toContain("<p>The API is down.</p>");
+    expect(api).toContain("<title>Test Maintenance</title>");
+    expect(await page("https://api.example.com/v2/users")).toContain("<title>API v2 upgrade</title>");
+  });
+
+  it("escapes page text", async () => {
+    const html = await (
+      await serve({ PAGES: JSON.stringify([{ title: "<script>x()</script>" }]) }, at("https://example.com/"))
+    ).text();
+    expect(html).not.toContain("<script>x()");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("ignores malformed entries and bindings", () => {
+    expect(parsePages("not-json")).toEqual([]);
+    expect(parsePages('{"title": "x"}')).toEqual([]);
+    expect(parsePages('[null, 1, "x", {"path_prefix": "api", "title": "x"}]')).toEqual([]);
+    expect(parsePages('[{"title": "x"}]')).toEqual([{ pathPrefix: "/", title: "x" }]);
+  });
+
+  it("treats a trailing-slash prefix as a plain prefix", () => {
+    const parsed = parsePages('[{"path_prefix": "/docs/", "title": "Docs"}]');
+    expect(selectPage(parsed, new URL("https://example.com/docs/a"))?.title).toBe("Docs");
+    expect(selectPage(parsed, new URL("https://example.com/docs"))).toBeUndefined();
   });
 });

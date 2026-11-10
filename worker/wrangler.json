@@ -14,6 +14,8 @@
     "MAINTENANCE_WINDOW_END": "",
     "RETRY_AFTER": "3600",
     "ALLOWED_IPS": "[]",
-    "ALLOWED_REGIONS": "[]"
+    "ALLOWED_REGIONS": "[]",
+    "STATUS_PATH": "/__maintenance/status",
+    "PAGES": "[]"
   }
 }

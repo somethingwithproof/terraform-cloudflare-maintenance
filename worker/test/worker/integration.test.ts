@@ -18,7 +18,7 @@ describe("with the wrangler.json bindings", () => {
   it("returns 503 with the maintenance page", async () => {
     const response = await exports.default.fetch("https://example.com/");
     expect(response.status).toBe(503);
-    expect(response.headers.get("Content-Type")).toBe("text/html;charset=UTF-8");
+    expect(response.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     const body = await response.text();
     expect(body).toContain("Maintenance Mode");
     expect(body).toContain("We are currently performing scheduled maintenance.");
@@ -43,6 +43,14 @@ describe("with the wrangler.json bindings", () => {
     const init: RequestInit = { method };
     if (method === "POST" || method === "PUT") init.body = JSON.stringify({ data: "test" });
     expect((await exports.default.fetch("https://example.com/api/1", init)).status).toBe(503);
+  });
+});
+
+describe("status endpoint", () => {
+  it("answers at the wrangler.json STATUS_PATH", async () => {
+    const response = await exports.default.fetch("https://example.com/__maintenance/status");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ maintenance: true, window: null, retry_after_seconds: 3600 });
   });
 });
 

@@ -8,6 +8,14 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- The Worker answers `status_path`, by default `/__maintenance/status`, on
+  every routed hostname with a JSON status document instead of passing it to
+  the origin. Set `status_path = ""` to keep the old behavior where the
+  origin serves that path.
+- The maintenance page's `Content-Type` is `text/html; charset=utf-8`
+  (was `text/html;charset=UTF-8`), and `HEAD` requests get the 503 status
+  and headers without the page body.
+
 - CD reads every deploy input from the GitHub environment: `TF_API_TOKEN`
   is now an environment secret (one HCP token per environment) instead of a
   repository secret, and `MAINTENANCE_ENABLED`, `MAINTENANCE_WINDOW`,
@@ -84,6 +92,10 @@ All notable changes to this module are documented here. The format follows
   deletes the record.
 
 ### Added
+
+- `status_path`: a JSON status endpoint (`maintenance`, `window`,
+  `retry_after_seconds`) for status pages and probes.
+- `pages`: title and message overrides per hostname and path prefix.
 
 - `deploy/` root configuration and a CD workflow that applies it with state in
   HCP Terraform, one workspace per environment, and fails before `init` when
