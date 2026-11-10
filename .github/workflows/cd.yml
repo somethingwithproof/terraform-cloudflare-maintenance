@@ -89,75 +89,16 @@ jobs:
       INPUT_CLEAR_WINDOW: ${{ inputs.clear_window || false }}
 
     steps:
-      # Fail before init so a missing setting can never fall back to local
-      # state, and before any apply so a malformed setting changes nothing.
-      - name: Resolve deploy settings
-        shell: bash
-        working-directory: .
-        run: |
-          set -euo pipefail
-          missing=()
-          for name in TF_CLOUD_ORGANIZATION TF_TOKEN_app_terraform_io \
-            CLOUDFLARE_API_TOKEN TF_VAR_cloudflare_account_id \
-            TF_VAR_cloudflare_zone_id TF_VAR_worker_route; do
-            [[ -n "${!name}" ]] || missing+=("$name")
-          done
-          if (( ${#missing[@]} )); then
-            echo "::error::Not configured for HCP Terraform deploys; missing: ${missing[*]}. Set the variables and environment secrets described in the README."
-            exit 1
-          fi
-
-          fail() { echo "::error::$1"; exit 1; }
-          # setvar NAME VALUE: exports a TF_VAR_ for the plan. jq -c makes
-          # it one line, so nothing else can be written to GITHUB_ENV.
-          setvar() { printf 'TF_VAR_%s=%s\n' "$1" "$2" >> "$GITHUB_ENV"; }
-
-          enabled=${ENV_ENABLED:-false}
-          [[ "$INPUT_ENABLED" == environment ]] || enabled=$INPUT_ENABLED
-          [[ "$enabled" == true || "$enabled" == false ]] ||
-            fail "MAINTENANCE_ENABLED must be true or false."
-          setvar enabled "$enabled"
-
-          rfc3339='^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$'
-          window=$ENV_WINDOW
-          if [[ "$INPUT_CLEAR_WINDOW" == true ]]; then
-            window=
-          elif [[ -n "$INPUT_WINDOW_START" || -n "$INPUT_WINDOW_END" ]]; then
-            [[ "$INPUT_WINDOW_START" =~ $rfc3339 && "$INPUT_WINDOW_END" =~ $rfc3339 ]] ||
-              fail "Set both window_start and window_end as RFC3339 times, or neither."
-            window=$(jq -cn --arg s "$INPUT_WINDOW_START" --arg e "$INPUT_WINDOW_END" '{start_time: $s, end_time: $e}')
-          fi
-          if [[ -n "$window" ]]; then
-            window=$(jq -ce 'select(type == "object" and (.start_time | type) == "string" and (.end_time | type) == "string") | {start_time, end_time}' <<<"$window") ||
-              fail 'MAINTENANCE_WINDOW must be a JSON object {"start_time": "...", "end_time": "..."}.'
-            setvar maintenance_window "$window"
-          fi
-
-          # setlist TFVAR NAME VALUE: a JSON array of strings, if set.
-          setlist() {
-            [[ -n "$3" ]] || return 0
-            local list
-            list=$(jq -ce 'select(type == "array" and all(.[]; type == "string"))' <<<"$3") ||
-              fail "$2 must be a JSON array of strings."
-            setvar "$1" "$list"
-          }
-          setlist allowed_ips ALLOWED_IPS "$ENV_ALLOWED_IPS"
-          setlist allowed_regions ALLOWED_REGIONS "$ENV_ALLOWED_REGIONS"
-
-          runtime_toggle=${ENV_RUNTIME_TOGGLE:-false}
-          [[ "$runtime_toggle" == true || "$runtime_toggle" == false ]] ||
-            fail "RUNTIME_TOGGLE must be true or false."
-          setvar runtime_toggle "$runtime_toggle"
-
-          if [[ -n "$ENV_CONTACT_EMAIL" ]]; then
-            [[ "$ENV_CONTACT_EMAIL" != *$'\n'* ]] || fail "CONTACT_EMAIL must be one line."
-            setvar contact_email "$ENV_CONTACT_EMAIL"
-          fi
-
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v6
         with:
           persist-credentials: false
+
+      # Fail before init so a missing setting can never fall back to local
+      # state, and before any apply so a malformed setting changes nothing.
+      - name: Resolve deploy settings
+        working-directory: .
+        run: .github/scripts/deploy-settings.sh
 
       - name: Setup OpenTofu
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
