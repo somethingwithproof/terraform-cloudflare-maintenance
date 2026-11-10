@@ -71,6 +71,12 @@ variable "allowed_ips" {
   }
 }
 
+variable "script_name" {
+  description = "Name of the Worker script: 1-63 lowercase letters, digits or dashes, starting and ending with a letter or digit. Defaults to maintenance-page-<environment>. Must be unique per account: two module instances with the same name overwrite each other's Worker."
+  type        = string
+  default     = null
+}
+
 variable "environment" {
   description = "Environment name (e.g., production, staging, development)"
   type        = string
