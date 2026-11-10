@@ -21,7 +21,7 @@
     "@types/node": "^24.19.2",
     "@vitest/coverage-istanbul": "5.1.0",
     "eslint": "10.14.0",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "typescript-eslint": "8.72.1",
     "vitest": "5.1.0",
     "wrangler": "4.156.1"
