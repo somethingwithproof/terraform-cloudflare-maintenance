@@ -33,16 +33,16 @@ module "maintenance" {
   logo_url   = "https://example.com/logo-large.png"
 }
 
-# Notify monitoring system about maintenance window
-resource "null_resource" "maintenance_notification" {
-  count = var.environment == "production" && module.maintenance.maintenance_status == "ENABLED" ? 1 : 0
+# Notify the monitoring system whenever the maintenance status or window changes
+module "maintenance_notifications" {
+  source = "../../modules/notifications"
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      curl -X POST \
-        -H "Content-Type: application/json" \
-        -d '{"status": "maintenance", "start_time": "${replace(var.maintenance_start_time, "'", "")}", "end_time": "${replace(var.maintenance_end_time, "'", "")}"}' \
-        "${replace(var.monitoring_webhook_url, "'", "")}"
-    EOT
+  notification_urls = var.monitoring_webhook_url == "" ? {} : {
+    monitoring = "webhook://${var.monitoring_webhook_url}"
   }
+
+  maintenance_status = module.maintenance.maintenance_status
+  schedule_name      = "advanced-config"
+  environment        = var.environment
+  maintenance_window = module.maintenance.maintenance_window
 }

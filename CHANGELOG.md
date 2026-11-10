@@ -8,6 +8,19 @@ All notable changes to this module are documented here. The format follows
 
 ### Breaking changes
 
+- Notifications module: `notification_urls` is now a sensitive
+  `map(string)` of non-secret names to URLs instead of a list, and
+  `webhook://` targets must use HTTPS. Before, the URLs were stored in state
+  and shown in plan diffs, a sensitive list failed `for_each`, and every
+  apply re-sent a PagerDuty trigger because the trigger included
+  `timestamp()`. Notifications are now `terraform_data` resources that fire
+  only when the status, schedule, environment or window changes, PagerDuty
+  incidents are resolved when the status is `DISABLED` or `COMPLETED`, and
+  requests use `curl -fsS --max-time 10 --retry 2`. The module no longer
+  requires the null provider. On the first apply after upgrading, the old
+  `null_resource` entries are destroyed and one notification per target is
+  sent.
+
 - Removed the `schedules` variable and output. Nothing consumed them; the
   cron schedules were never acted on. Remove `schedules` from module calls.
 - A `maintenance_window` now restricts the page to that window even when
