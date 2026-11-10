@@ -1,134 +1,31 @@
 name: E2E Tests
 
+# Applies the module to a real Cloudflare zone with Terratest, deploys,
+# asserts and destroys. Manual only: the unit, OpenTofu, lint and security
+# checks run on every pull request in ci.yml. Without the CF_E2E_* settings
+# below the run succeeds with a warning that the tests were skipped.
+
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  # checkov:skip=CKV_GHA_7: the input only opts in to the real-zone tests; nothing is built or released
   workflow_dispatch:
-    inputs:
-      run_e2e:
-        description: "Run E2E tests with real Cloudflare API"
-        required: false
-        default: "false"
-        type: boolean
 
 permissions:
   contents: read
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
-  NODE_VERSION: "24"
   TOFU_VERSION: "1.8.10"
 
 jobs:
-  # Unit tests for the Worker and notify.sh
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: worker
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: worker/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Run unit tests
-        run: npm run test:unit
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
-        with:
-          directory: worker/coverage
-          flags: unit
-          fail_ci_if_error: false
-
-  # Integration tests through the Worker's fetch handler in workerd
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: worker
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: worker/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci --ignore-scripts
-
-      - name: Run integration tests
-        run: npm run test:integration
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
-        with:
-          directory: worker/coverage
-          flags: integration
-          fail_ci_if_error: false
-
-  # Terraform native tests
-  terraform-tests:
-    name: Terraform Tests
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        test-file:
-          - basic.tftest.hcl
-          - worker.tftest.hcl
-          - rate_limit.tftest.hcl
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-
-      - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
-        with:
-          tofu_version: ${{ env.TOFU_VERSION }}
-          # Call the tofu binary directly; the Node wrapper only re-exports outputs.
-          tofu_wrapper: false
-
-      - name: Initialize OpenTofu
-        run: tofu init -backend=false
-
-      # The test files use mock_provider, so no Cloudflare API calls or credentials.
-      - name: Run Terraform test - ${{ matrix.test-file }}
-        run: tofu test -filter=tests/${{ matrix.test-file }}
-
-  # Go-based Terratest E2E tests
   terratest:
     name: Terratest E2E
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_e2e == 'true'
-    needs: [unit-tests, integration-tests, terraform-tests]
+    # The settings are secrets and variables of the e2e environment, which
+    # only runs from main, so a pull request can never reach the test zone.
+    environment: e2e
+    # One run at a time: tests use unique names, but share the zone's quota.
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: tests/e2e
@@ -183,90 +80,7 @@ jobs:
 
       - name: Run Terratest E2E tests
         if: steps.config.outputs.ready == 'true'
-        run: go test -v -timeout 30m ./...
-
-  # Security scanning
-  security-scan:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write # Upload Trivy SARIF results
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-results.sarif"
-          severity: "CRITICAL,HIGH"
-
-      - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
-        if: always()
-        with:
-          sarif_file: "trivy-results.sarif"
-
-  # Linting
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-        with:
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6
-        with:
-          tflint_version: v0.50.0
-
-      - name: Run TFLint
-        run: |
-          tflint --init
-          tflint -f compact
-
-      - name: Install Worker dependencies
-        working-directory: worker
-        run: npm ci --ignore-scripts
-
-      - name: Run ESLint on the Worker and its tests
-        working-directory: worker
-        run: npm run lint
-
-  # Test summary job
-  test-summary:
-    name: Test Summary
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, terraform-tests, security-scan, lint]
-    if: always()
-    steps:
-      - name: Check test results
-        run: |
-          {
-            echo "## Test Results Summary"
-            echo ""
-            echo "| Test Suite | Status |"
-            echo "|------------|--------|"
-            echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
-            echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
-            echo "| Terraform Tests | ${{ needs.terraform-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
-            echo "| Security Scan | ${{ needs.security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
-            echo "| Lint | ${{ needs.lint.result == 'success' && '✅ Passed' || '❌ Failed' }} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Fail if critical tests failed
-        if: needs.unit-tests.result == 'failure' || needs.integration-tests.result == 'failure'
-        run: exit 1
+        # Each test registers its destroy with t.Cleanup, so resources are
+        # removed even when an assertion fails; -timeout stays below the job
+        # timeout so the cleanups get to run.
+        run: go test -v -timeout 35m ./...
