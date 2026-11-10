@@ -364,7 +364,10 @@ maintenance, have a scheduler set the next window and apply.
 
 The `modules/notifications` submodule announces maintenance to Slack,
 PagerDuty (trigger, then resolve when maintenance ends) or any HTTPS webhook
-when an apply changes the status or window. `notification_urls` is a sensitive
+when an apply changes the status or window, after the Cloudflare changes in
+that apply have succeeded. A `SCHEDULED` window pages nobody, and because
+nothing applies when a window opens or closes, the module cannot page at
+those moments; see the module README. `notification_urls` is a sensitive
 map of non-secret names to URLs; the URLs never reach plans, state or command
 lines. See the [notifications module documentation](modules/notifications/README.md)
 for URL formats and requirements.

@@ -6,7 +6,7 @@ variables {
     oncall    = "pagerduty://routing-key-123"
     audit     = "webhook://https://hooks.example.com/maintenance"
   }
-  maintenance_status = "SCHEDULED"
+  maintenance_status = "ENABLED"
   schedule_name      = "weekly"
   environment        = "production"
   maintenance_window = {
@@ -39,7 +39,7 @@ run "triggers_hold_only_status_and_window" {
 
   assert {
     condition = terraform_data.notification["oncall"].triggers_replace == {
-      status        = "SCHEDULED"
+      status        = "ENABLED"
       action        = "trigger"
       schedule_name = "weekly"
       environment   = "production"
@@ -75,6 +75,52 @@ run "ending_maintenance_resolves" {
   assert {
     condition     = terraform_data.notification["oncall"].triggers_replace.start_time == ""
     error_message = "A null window should be sent as empty times"
+  }
+}
+
+run "scheduled_window_pages_nobody" {
+  command = plan
+
+  variables {
+    maintenance_status = "SCHEDULED"
+  }
+
+  assert {
+    condition     = output.event_action == "none"
+    error_message = "A window that has not started must not trigger PagerDuty"
+  }
+
+  assert {
+    condition     = length(terraform_data.notification) == 3
+    error_message = "Slack and webhook targets are still informed of the schedule"
+  }
+}
+
+run "incident_key_is_kept_for_the_replacement" {
+  command = plan
+
+  assert {
+    condition     = terraform_data.notification["oncall"].input.dedup_key == "terraform-cloudflare-maintenance/production/weekly" && terraform_data.notification["oncall"].input.action == "trigger"
+    error_message = "The announced incident key and action must be kept in input for the destroy-time handoff"
+  }
+
+  assert {
+    condition     = output.dedup_key == terraform_data.notification["oncall"].input.dedup_key
+    error_message = "The dedup_key output must match the key notifications use"
+  }
+
+  assert {
+    condition = alltrue([
+      for name, n in terraform_data.notification : !anytrue([
+        for v in values(n.input) : strcontains(v, "routing-key") || strcontains(v, "XXXXXXXX") || strcontains(v, "hooks.example.com")
+      ])
+    ])
+    error_message = "No notification URL or key may appear in input"
+  }
+
+  assert {
+    condition     = length(distinct([for n in terraform_data.notification : n.input.state_file])) == 3
+    error_message = "Each target needs its own handoff file"
   }
 }
 
