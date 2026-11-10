@@ -1,6 +1,6 @@
 # Core resources: the Worker script is always deployed; the route whenever
-# maintenance is enabled or a maintenance window is set. Plans run against a mocked provider, so no test
-# ever calls the Cloudflare API.
+# maintenance is enabled or a maintenance window is set. Plans run against a
+# mocked provider, so no test ever calls the Cloudflare API.
 
 mock_provider "cloudflare" {}
 
@@ -19,8 +19,8 @@ run "enabled_deploys_script_and_route" {
   }
 
   assert {
-    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-worker"
-    error_message = "Worker script should be named maintenance-page-worker"
+    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-test"
+    error_message = "Worker script name should default to maintenance-page-<environment>"
   }
 
   assert {
@@ -44,7 +44,7 @@ run "enabled_deploys_script_and_route" {
   }
 
   assert {
-    condition     = cloudflare_workers_route.maintenance[0].script == "maintenance-page-worker"
+    condition     = cloudflare_workers_route.maintenance[0].script == cloudflare_workers_script.maintenance.script_name
     error_message = "Worker route should point at the maintenance Worker"
   }
 
@@ -67,7 +67,7 @@ run "disabled_deploys_script_without_route" {
   }
 
   assert {
-    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-worker"
+    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-test"
     error_message = "Worker script should still be deployed when disabled"
   }
 
@@ -170,4 +170,95 @@ run "reject_empty_window" {
   }
 
   expect_failures = [var.maintenance_window]
+}
+
+run "script_name_comes_from_the_variable" {
+  command = plan
+
+  variables {
+    enabled     = true
+    script_name = "maintenance-shop-eu"
+  }
+
+  assert {
+    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-shop-eu"
+    error_message = "Worker script should use script_name"
+  }
+
+  assert {
+    condition     = cloudflare_workers_route.maintenance[0].script == "maintenance-shop-eu"
+    error_message = "Worker route should point at the script named by script_name"
+  }
+
+  assert {
+    condition     = output.worker_name == "maintenance-shop-eu" && output.worker_script_name == "maintenance-shop-eu"
+    error_message = "Outputs should report the configured script name"
+  }
+}
+
+run "script_name_derived_from_environment_is_normalized" {
+  command = plan
+
+  variables {
+    environment = "Staging EU_1"
+  }
+
+  assert {
+    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-staging-eu-1"
+    error_message = "The derived name should be lowercased with runs of other characters turned into dashes"
+  }
+}
+
+run "environments_get_distinct_script_names" {
+  command = plan
+
+  variables {
+    environment = "production"
+  }
+
+  assert {
+    condition     = cloudflare_workers_script.maintenance.script_name == "maintenance-page-production"
+    error_message = "Each environment should get its own Worker"
+  }
+}
+
+run "reject_invalid_script_name" {
+  command = plan
+
+  variables {
+    script_name = "Maintenance_Page"
+  }
+
+  expect_failures = [cloudflare_workers_script.maintenance]
+}
+
+run "reject_overlong_script_name" {
+  command = plan
+
+  variables {
+    # 64 characters, one more than Cloudflare allows.
+    script_name = "maintenance-page-01234567890123456789012345678901234567890123456"
+  }
+
+  expect_failures = [cloudflare_workers_script.maintenance]
+}
+
+run "reject_script_name_ending_in_a_dash" {
+  command = plan
+
+  variables {
+    script_name = "maintenance-"
+  }
+
+  expect_failures = [cloudflare_workers_script.maintenance]
+}
+
+run "reject_empty_script_name" {
+  command = plan
+
+  variables {
+    script_name = ""
+  }
+
+  expect_failures = [cloudflare_workers_script.maintenance]
 }
