@@ -292,6 +292,7 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | dns_record_id | ID of the DNS record for the maintenance status page |
 | ruleset_id | ID of the firewall ruleset for IP/region allowlisting |
 | allowed_regions | List of allowed regions that can bypass maintenance |
+| schedules | Validated cron-based maintenance schedules, for external automation |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
 

@@ -1,10 +1,17 @@
 # Test basic Cloudflare maintenance functionality
 
+# Mock the Cloudflare provider so tests never call the real Cloudflare API.
+mock_provider "cloudflare" {}
+
+variables {
+  cloudflare_api_token = "test-api-token"
+}
+
 run "test_enabled_maintenance" {
   # Define variables for this test
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     enabled               = true
     maintenance_title     = "System Maintenance"
     contact_email         = "support@example.com"
@@ -14,9 +21,6 @@ run "test_enabled_maintenance" {
   }
 
   # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply
@@ -61,8 +65,8 @@ run "test_enabled_maintenance" {
 run "test_disabled_maintenance" {
   # Define variables for this test
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     enabled               = false
     maintenance_title     = "System Maintenance"
     contact_email         = "support@example.com"
@@ -71,9 +75,6 @@ run "test_disabled_maintenance" {
   }
 
   # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply

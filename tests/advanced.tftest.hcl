@@ -1,10 +1,17 @@
 # Advanced test for Cloudflare maintenance module
 
+# Mock the Cloudflare provider so tests never call the real Cloudflare API.
+mock_provider "cloudflare" {}
+
+variables {
+  cloudflare_api_token = "test-api-token"
+}
+
 # Test case 1: Environment-based configuration (staging)
 run "verify_staging_environment" {
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     environment           = "staging"
     worker_route          = "example.com/api/*"
     enabled               = true
@@ -19,10 +26,6 @@ run "verify_staging_environment" {
     logo_url   = "https://example.com/logo-large.png"
   }
 
-  # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply
@@ -67,8 +70,8 @@ run "verify_staging_environment" {
 # Test case 2: Environment-based configuration (production)
 run "verify_production_environment" {
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     environment           = "production"
     worker_route          = "example.com/api/*"
     enabled               = false
@@ -83,10 +86,6 @@ run "verify_production_environment" {
     logo_url   = "https://example.com/logo-large.png"
   }
 
-  # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply
@@ -121,8 +120,8 @@ run "verify_production_environment" {
 # Test case 3: Variable validation for RFC3339 dates
 run "verify_rfc3339_date_validation" {
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     enabled               = true
     environment           = "test"
     worker_route          = "example.com/*"
@@ -132,10 +131,6 @@ run "verify_rfc3339_date_validation" {
     }
   }
 
-  # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply
@@ -160,8 +155,8 @@ run "verify_rfc3339_date_validation" {
 # Test case 4: Test allowed IP configuration
 run "verify_ip_configuration" {
   variables {
-    cloudflare_account_id = "test-account-id"
-    cloudflare_zone_id    = "test-zone-id"
+    cloudflare_account_id = "0123456789abcdef0123456789abcdef"
+    cloudflare_zone_id    = "fedcba9876543210fedcba9876543210"
     enabled               = true
     environment           = "test"
     worker_route          = "example.com/*"
@@ -169,10 +164,6 @@ run "verify_ip_configuration" {
     allowed_regions       = ["US", "CA"]
   }
 
-  # Specify module to test
-  module {
-    source = "../"
-  }
 
   # Apply command to test actual resource creation
   command = apply
