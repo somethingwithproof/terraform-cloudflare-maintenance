@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/github/license/thomasvincent/terraform-cloudflare-maintenance.svg)](LICENSE)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 [![OpenTofu Version](https://img.shields.io/badge/OpenTofu-%3E%3D1.6.0-blue)](versions.tf)
-[![Cloudflare Provider](https://img.shields.io/badge/provider-cloudflare%20v5.2-1e90ff)](versions.tf)
+[![Cloudflare Provider](https://img.shields.io/badge/provider-cloudflare%20v5.19%2B-1e90ff)](versions.tf)
 [![Test Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](tests/)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/somethingwithproof/terraform-cloudflare-maintenance/badge)](https://scorecard.dev/viewer/?uri=github.com/somethingwithproof/terraform-cloudflare-maintenance)
 
@@ -68,7 +68,7 @@ provider "cloudflare" {
 ## Prerequisites
 
 - OpenTofu >= 1.6.0 (or Terraform >= 1.5.0)
-- Cloudflare Provider >= 5.2
+- Cloudflare Provider >= 5.19, < 6.0
 - Cloudflare Account with Workers enabled
 - Valid Cloudflare API credentials
 - Cloudflare API Token with appropriate permissions:
