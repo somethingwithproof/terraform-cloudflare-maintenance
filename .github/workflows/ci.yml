@@ -120,6 +120,14 @@ jobs:
           output_file_path: console,checkov.sarif
           soft_fail: false
 
+      # Code scanning ignores SARIF suppressions and would open an alert for
+      # every inline checkov:skip, so drop suppressed results before upload.
+      - name: Drop inline-suppressed findings from the report
+        if: always()
+        run: |
+          jq '.runs[].results |= map(select((.suppressions // []) == []))' checkov.sarif > checkov.filtered.sarif
+          mv checkov.filtered.sarif checkov.sarif
+
       # Uploaded even when the scan fails, so the findings show in the
       # pull request. Forks get a read-only token and cannot upload.
       - name: Upload SARIF report
