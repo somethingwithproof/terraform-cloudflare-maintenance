@@ -246,7 +246,7 @@ graph TD
 | maintenance_title | Title for the maintenance page | `string` | `"System Maintenance in Progress"` | no |
 | maintenance_message | Message to display on the maintenance page | `string` | `"We are currently performing..."` | no |
 | contact_email | Contact email to display on the maintenance page | `string` | `""` | no |
-| allowed_ips | IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page | `list(string)` | `[]` | no |
+| allowed_ips | IPv4/IPv6 addresses or CIDR ranges that bypass the maintenance page; no leading zeros in IPv4 octets, and IPv4-mapped IPv6 ranges need a prefix of at least 96 | `list(string)` | `[]` | no |
 | allowed_regions | List of ISO 3166-1 alpha-2 country codes that can bypass maintenance | `list(string)` | `[]` | no |
 | maintenance_window | Window in RFC3339; deploys the route and serves the page only from `start_time` (inclusive) to `end_time` (exclusive) | `object({start_time=string, end_time=string})` | `null` | no |
 | custom_css | Custom CSS for the maintenance page | `string` | `""` | no |
