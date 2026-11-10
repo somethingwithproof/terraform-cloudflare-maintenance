@@ -1,7 +1,10 @@
 # Terraform
 .terraform/
 **/.terraform/*
+# Reusable modules and examples do not pin providers; the deploy root does,
+# so CD installs exactly the reviewed provider build.
 .terraform.lock.hcl
+!/deploy/.terraform.lock.hcl
 .terraformrc
 terraform.rc
 .terraform.tfstate

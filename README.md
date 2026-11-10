@@ -294,6 +294,13 @@ Use GitHub environment protection rules (for example required reviewers on
 Terraform API; HCP officially supports only Terraform, so check that state
 upload works in the `dev` workspace first.
 
+`deploy/.terraform.lock.hcl` pins the provider builds for `linux_amd64`,
+`darwin_arm64` and `darwin_amd64`, and CI and CD run `tofu init
+-lockfile=readonly`, so an apply always uses the reviewed provider. Dependabot
+(`opentofu` ecosystem) proposes updates; to update by hand, run
+`tofu providers lock -platform=linux_amd64 -platform=darwin_arm64
+-platform=darwin_amd64` in `deploy/` and commit the result.
+
 To use the same root locally:
 
 ```bash
