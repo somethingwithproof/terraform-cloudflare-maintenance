@@ -23,7 +23,7 @@ const workerBindings = Object.fromEntries(
 // from the repository root with --config, so patterns are relative to the root.
 export default defineConfig({
   extends: [
-    { ignores: ["**/node_modules/", "**/coverage/", "github-org-terraform/"] },
+    { ignores: ["**/node_modules/", "**/coverage/"] },
     js.configs.recommended,
   {
     files: ["worker.js"],
