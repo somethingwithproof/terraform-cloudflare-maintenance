@@ -8,13 +8,23 @@ locals {
     var.script_name != null ? var.script_name :
     "maintenance-page-${trim(replace(lower(var.environment), "/[^a-z0-9]+/", "-"), "-")}"
   )
+
+  # The bundle built from worker/src by `npm run build` and committed, so the
+  # module deploys without Node. wrangler.json is the one source of the
+  # runtime compatibility date for local runs, tests and this deploy.
+  worker_bundle      = "${path.module}/worker/dist/index.js"
+  compatibility_date = jsondecode(file("${path.module}/worker/wrangler.json")).compatibility_date
 }
 
 # Deploy the maintenance worker
 resource "cloudflare_workers_script" "maintenance" {
   account_id  = var.cloudflare_account_id
   script_name = local.script_name
-  content     = file("${path.module}/worker.js")
+  # A module Worker: the bundle exports a fetch handler.
+  content_file       = local.worker_bundle
+  content_sha256     = filesha256(local.worker_bundle)
+  main_module        = "index.js"
+  compatibility_date = local.compatibility_date
 
   lifecycle {
     # Renaming replaces the Worker. Create the new one first so the route can

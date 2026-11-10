@@ -39,3 +39,5 @@ node_modules/* linguist-vendored
 # Diff settings
 *.tfstate -diff
 *.tfstate.backup -diff
+# Built from worker/src by npm run build; GitHub collapses it in reviews.
+worker/dist/index.js linguist-generated=true

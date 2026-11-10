@@ -98,6 +98,18 @@ All notable changes to this module are documented here. The format follows
   any spelling and treats IPv4-mapped IPv6 as IPv4. Entries are validated at
   plan time.
 
+### Changed
+
+- The Worker is rewritten in TypeScript under `worker/` and deployed as a
+  module Worker (`main_module = "index.js"`) from the committed bundle
+  `worker/dist/index.js`, with `content_sha256` so only real code changes
+  update it, and with the `compatibility_date` from `worker/wrangler.json`
+  (2026-10-01) instead of the account default. The HTTP responses are
+  unchanged. `worker.js` and the `tests/` Node project are removed; the
+  Worker's tests now run in workerd through the Cloudflare Vitest plugin,
+  and CI type-checks, lints with typescript-eslint and fails when the
+  committed bundle is not the build of `worker/src`.
+
 ### Security
 
 - `deploy/.terraform.lock.hcl` is committed for linux_amd64, darwin_arm64 and

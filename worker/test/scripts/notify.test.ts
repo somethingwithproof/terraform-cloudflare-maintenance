@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const script = fileURLToPath(
-  new URL("../../modules/notifications/notify.sh", import.meta.url),
+  new URL("../../../modules/notifications/notify.sh", import.meta.url),
 );
 
 // Records curl's stdin config, arguments and request body, then succeeds,
@@ -37,7 +37,7 @@ for arg in "$@"; do
 done
 `;
 
-let dir;
+let dir: string;
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "notify-"));
@@ -45,13 +45,36 @@ beforeEach(() => {
   chmodSync(join(dir, "curl"), 0o755);
 });
 
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
 
-function notify(url, overrides = {}) {
+/** The fields of the bodies notify.sh sends that these tests read. */
+interface Body {
+  text?: string;
+  blocks?: unknown[];
+  status?: string;
+  schedule_name?: string;
+  routing_key?: string;
+  event_action?: string;
+  dedup_key?: string;
+  payload?: Record<string, unknown>;
+}
+
+interface Sent {
+  status: number | null;
+  stderr: string;
+  config: string;
+  args: string[];
+  body: Body | null;
+  bodies: Body[];
+}
+
+function notify(url: string, overrides: Record<string, string> = {}): Sent {
   const result = spawnSync("/bin/sh", [script], {
     encoding: "utf8",
     env: {
-      PATH: `${dir}:${process.env.PATH}`,
+      PATH: `${dir}:${process.env.PATH ?? ""}`,
       STUB_DIR: dir,
       NOTIFY_URL: url,
       NOTIFY_STATUS: "ENABLED",
@@ -64,7 +87,7 @@ function notify(url, overrides = {}) {
       ...overrides,
     },
   });
-  const read = (name) => {
+  const read = (name: string): string => {
     try {
       return readFileSync(join(dir, name), "utf8");
     } catch {
@@ -76,11 +99,11 @@ function notify(url, overrides = {}) {
     stderr: result.stderr,
     config: read("config"),
     args: read("args").split("\n"),
-    body: read("body") ? JSON.parse(read("body")) : null,
+    body: read("body") ? (JSON.parse(read("body")) as Body) : null,
     bodies: read("bodies")
       .split("\n")
       .filter(Boolean)
-      .map((line) => JSON.parse(line)),
+      .map((line) => JSON.parse(line) as Body),
   };
 }
 
@@ -91,8 +114,8 @@ describe("notify.sh", () => {
     expect(sent.config).toBe(
       'url = "https://hooks.slack.com/services/T000/B000/XXXX"\n',
     );
-    expect(sent.body.text).toBe("Maintenance ENABLED");
-    expect(JSON.stringify(sent.body.blocks)).toContain("weekly");
+    expect(sent.body?.text).toBe("Maintenance ENABLED");
+    expect(JSON.stringify(sent.body?.blocks)).toContain("weekly");
   });
 
   it("triggers a PagerDuty event with a dedup key", () => {
@@ -148,7 +171,7 @@ describe("notify.sh", () => {
       NOTIFY_SCHEDULE: `"}' ; $(touch pwned) \``,
     });
     expect(sent.status).toBe(0);
-    expect(sent.body.schedule_name).toBe(`"}' ; $(touch pwned) \``);
+    expect(sent.body?.schedule_name).toBe(`"}' ; $(touch pwned) \``);
   });
 
   it("rejects unknown actions without calling curl", () => {
@@ -174,18 +197,18 @@ describe("notify.sh", () => {
     });
 
     it("still inform Slack and webhooks", () => {
-      expect(notify("slack://T000/B000/XXXX", scheduled).body.text).toBe(
+      expect(notify("slack://T000/B000/XXXX", scheduled).body?.text).toBe(
         "Maintenance SCHEDULED",
       );
       expect(
-        notify("webhook://https://hooks.example.com/x", scheduled).body.status,
+        notify("webhook://https://hooks.example.com/x", scheduled).body?.status,
       ).toBe("SCHEDULED");
     });
   });
 
   describe("incident handoff across a replacement", () => {
     const stateFile = () => join(dir, "state", "target.json");
-    const record = (key, action) =>
+    const record = (key: string, action: string) =>
       notify("pagerduty://ignored", {
         NOTIFY_MODE: "record",
         NOTIFY_STATE_FILE: stateFile(),
@@ -262,7 +285,7 @@ describe("notify.sh", () => {
         NOTIFY_DEDUP_KEY: newKey,
       });
       expect(sent.status).not.toBe(0);
-      expect(JSON.parse(readFileSync(stateFile(), "utf8")).dedup_key).toBe(
+      expect((JSON.parse(readFileSync(stateFile(), "utf8")) as Body).dedup_key).toBe(
         oldKey,
       );
     });

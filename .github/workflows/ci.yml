@@ -123,21 +123,41 @@ jobs:
         with:
           node-version: "24"
           cache: "npm"
-          cache-dependency-path: tests/package-lock.json
+          cache-dependency-path: worker/package-lock.json
 
-      # worker.js lives at the repo root; its Vitest suites live in tests/.
       - name: Install dependencies
-        working-directory: tests
+        working-directory: worker
         run: npm ci --ignore-scripts
 
+      - name: Type check
+        working-directory: worker
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: worker
+        run: npm run lint
+
+      # Worker tests run in workerd; the notify.sh tests in Node.
       - name: Run tests
-        working-directory: tests
+        working-directory: worker
         run: npm run test:coverage
+
+      # Terraform deploys the committed bundle, so it must be what the
+      # sources build to.
+      - name: Check the committed bundle is current
+        working-directory: worker
+        run: |
+          npm run build
+          if [ -n "$(git status --porcelain -- dist/index.js)" ]; then
+            git diff --stat -- dist/index.js
+            echo "::error file=worker/dist/index.js::worker/dist/index.js is not the build of worker/src. Run 'npm run build' in worker/ and commit the result."
+            exit 1
+          fi
 
       - name: Upload test coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v5
         with:
-          directory: ./tests/coverage/
+          directory: ./worker/coverage/
           flags: worker
           fail_ci_if_error: false
 

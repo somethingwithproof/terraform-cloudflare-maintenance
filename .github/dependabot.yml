@@ -69,12 +69,14 @@ updates:
           - "patch"
 
   # =============================================
-  # npm (tests/package.json and tests/package-lock.json)
+  # npm (worker/package.json and worker/package-lock.json). A wrangler
+  # update can change the bundle; CI then asks for a rebuilt
+  # worker/dist/index.js on the pull request.
   # =============================================
   - package-ecosystem: "npm"
     cooldown:
       default-days: 7
-    directory: "/tests"
+    directory: "/worker"
     schedule:
       interval: "weekly"
       day: "monday"

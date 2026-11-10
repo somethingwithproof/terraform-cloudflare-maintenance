@@ -27,11 +27,6 @@ plan.out
 *.plan
 tfplan
 
-# Cloudflare Workers
-worker/dist/
-worker/node_modules/
-worker/coverage/
-worker/src/config.json
 
 # Node.js
 node_modules/
@@ -49,6 +44,13 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 .cache/
+
+# The Worker bundle is committed so the module deploys without a build step;
+# wrangler's other build output is not.
+!/worker/dist/
+/worker/dist/*
+!/worker/dist/index.js
+/worker/.wrangler/
 
 # IDE/Editor folders
 .idea/

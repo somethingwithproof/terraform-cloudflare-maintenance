@@ -29,8 +29,18 @@ run "enabled_deploys_script_and_route" {
   }
 
   assert {
-    condition     = cloudflare_workers_script.maintenance.content == file("${path.module}/worker.js")
-    error_message = "Worker script content should be worker.js"
+    condition     = cloudflare_workers_script.maintenance.content_sha256 == filesha256("${path.module}/worker/dist/index.js")
+    error_message = "Worker script should be the committed bundle, worker/dist/index.js"
+  }
+
+  assert {
+    condition     = cloudflare_workers_script.maintenance.main_module == "index.js"
+    error_message = "Worker should be uploaded as a module Worker"
+  }
+
+  assert {
+    condition     = cloudflare_workers_script.maintenance.compatibility_date == jsondecode(file("${path.module}/worker/wrangler.json")).compatibility_date
+    error_message = "Worker compatibility date should come from worker/wrangler.json"
   }
 
   assert {
