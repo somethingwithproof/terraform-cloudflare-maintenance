@@ -24,11 +24,16 @@
 #   NOTIFY_URL             Optional notification target in the notifications
 #                          module's format (slack://, pagerduty://,
 #                          webhook://https://...). on triggers, off and clear
-#                          resolve, schedule informs without paging.
+#                          resolve. schedule resolves too, since the page is
+#                          down only inside the window, or triggers if the
+#                          window has already started; Slack and webhooks
+#                          hear of every command.
 #   NOTIFY_ENVIRONMENT     Environment name for notifications
 #   NOTIFY_SCHEDULE        Schedule name for notifications (default
 #                          runtime-toggle); the PagerDuty dedup key is
-#                          terraform-cloudflare-maintenance/<env>/<schedule>
+#                          terraform-cloudflare-maintenance/<env>/<schedule>.
+#                          Set it to the notifications module's
+#                          schedule_name to share the apply path's incident.
 #
 # Each edge location caches the override for runtime_toggle.cache_ttl_seconds
 # (default 60), and KV takes up to about a minute to propagate a write, so a
@@ -144,9 +149,18 @@ schedule)
   shift 2
   [[ "$start" =~ $utc && "$end" =~ $utc ]] || fail "START and END must be UTC times such as 2030-04-06T08:00:00Z"
   [[ "$start" < "$end" ]] || fail "END must be after START"
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  [[ "$now" < "$end" ]] || fail "END is in the past"
   text=$(text_options "$@")
   put_state "$(jq -c --arg s "$start" --arg e "$end" '{window: {start_time: $s, end_time: $e}} + .' <<<"$text")"
-  send_notification SCHEDULED none "$start" "$end"
+  # The window replaces any earlier on or Terraform enabled, so an incident
+  # opened for those is resolved under the same key until the window starts.
+  # PagerDuty ignores a resolve for a key with no open incident.
+  if [[ "$now" < "$start" ]]; then
+    send_notification SCHEDULED resolve "$start" "$end"
+  else
+    send_notification ACTIVE trigger "$start" "$end"
+  fi
   ;;
 clear)
   (($# == 0)) || usage

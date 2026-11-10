@@ -69,6 +69,9 @@ jobs:
       KV_NAMESPACE_ID: ${{ vars.KV_NAMESPACE_ID }}
       NOTIFY_URL: ${{ secrets.MAINTENANCE_NOTIFY_URL }}
       NOTIFY_ENVIRONMENT: ${{ inputs.environment }}
+      # The notifications module's schedule_name, so a toggle and an apply
+      # share one PagerDuty incident; empty means runtime-toggle.
+      NOTIFY_SCHEDULE: ${{ vars.MAINTENANCE_NOTIFY_SCHEDULE }}
       COMMAND: ${{ inputs.command }}
       WINDOW_START: ${{ inputs.window_start }}
       WINDOW_END: ${{ inputs.window_end }}
