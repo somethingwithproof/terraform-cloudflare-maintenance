@@ -193,21 +193,18 @@ module "maintenance" {
 
 # Optional: Configure notifications
 module "maintenance_notifications" {
-  source = "github.com/thomasvincent/terraform-cloudflare-maintenance//modules/notifications"
-  
-  notification_urls = [
-    "slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX",
-    "pagerduty://your-routing-key"
-  ]
-  
+  source = "github.com/somethingwithproof/terraform-cloudflare-maintenance//modules/notifications"
+
+  # Keys are non-secret names; the URLs are secrets.
+  notification_urls = {
+    ops_slack = var.slack_webhook_url     # slack://T000/B000/XXXX
+    oncall    = var.pagerduty_routing_key # pagerduty://<routing key>
+  }
+
   maintenance_status = module.maintenance.maintenance_status
   schedule_name      = "scheduled-maintenance"
   environment        = "production"
-  
-  maintenance_window = {
-    start_time = "2025-04-06T08:00:00Z"
-    end_time   = "2025-04-06T10:00:00Z"
-  }
+  maintenance_window = module.maintenance.maintenance_window
 }
 ```
 
@@ -330,27 +327,12 @@ maintenance, have a scheduler set the next window and apply.
 
 ## Notification Integrations
 
-The module supports multiple notification channels through the `modules/notifications` submodule:
-
-### Slack
-Send notifications to Slack channels via incoming webhooks:
-```hcl
-notification_urls = ["slack://T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"]
-```
-
-### PagerDuty
-Create incidents or events in PagerDuty:
-```hcl
-notification_urls = ["pagerduty://your-routing-key"]
-```
-
-### Generic Webhooks
-Send JSON payloads to any webhook endpoint:
-```hcl
-notification_urls = ["webhook://https://example.com/webhook"]
-```
-
-See the [notifications module documentation](modules/notifications/README.md) for more details.
+The `modules/notifications` submodule announces maintenance to Slack,
+PagerDuty (trigger, then resolve when maintenance ends) or any HTTPS webhook
+when an apply changes the status or window. `notification_urls` is a sensitive
+map of non-secret names to URLs; the URLs never reach plans, state or command
+lines. See the [notifications module documentation](modules/notifications/README.md)
+for URL formats and requirements.
 
 ## Development
 

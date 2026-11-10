@@ -58,7 +58,7 @@ variable "maintenance_end_time" {
 }
 
 variable "monitoring_webhook_url" {
-  description = "Webhook URL for notifying monitoring systems about maintenance"
+  description = "HTTPS webhook URL for notifying monitoring systems about maintenance; empty to disable"
   type        = string
   default     = ""
   sensitive   = true

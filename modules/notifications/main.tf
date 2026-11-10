@@ -1,140 +1,50 @@
-# Notification module for maintenance windows
-# Supports Slack, PagerDuty, and generic webhook notifications
+# Sends a Slack, PagerDuty or generic webhook notification on each apply that
+# changes the maintenance status or window.
 
 terraform {
-  required_version = ">= 1.7.0"
-  required_providers {
-    null = {
-      source  = "hashicorp/null"
-      version = ">= 3.2, < 4.0"
-    }
-  }
-}
-
-# Parse notification URLs and send notifications
-resource "null_resource" "notification" {
-  for_each = { for idx, url in var.notification_urls : idx => url if url != "" }
-
-  triggers = {
-    maintenance_status = var.maintenance_status
-    schedule_name      = var.schedule_name
-    timestamp          = timestamp()
-    notification_url   = each.value
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      ${local.notification_commands[each.key]}
-    EOT
-    environment = {
-      WEBHOOK_URL = local.resolved_urls[each.key]
-    }
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
+  required_version = ">= 1.6.0"
 }
 
 locals {
-  # Categorize notification URLs by type
-  slack_urls     = [for url in var.notification_urls : url if startswith(url, "slack://")]
-  pagerduty_urls = [for url in var.notification_urls : url if startswith(url, "pagerduty://")]
-  webhook_urls   = [for url in var.notification_urls : url if startswith(url, "webhook://")]
+  # Target names are not secret and key the resources; the URLs they map to
+  # are secret and only ever reach notify.sh through the environment.
+  notification_names = nonsensitive(toset(keys(var.notification_urls)))
 
-  # Resolve protocol-prefixed URLs to actual endpoint URLs
-  resolved_urls = {
-    for idx, url in var.notification_urls :
-    idx => contains(local.slack_urls, url) ? replace(url, "slack://", "https://hooks.slack.com/services/") :
-    contains(local.pagerduty_urls, url) ? replace(url, "pagerduty://", "") :
-    contains(local.webhook_urls, url) ? replace(url, "webhook://", "") :
-    url
+  window = coalesce(var.maintenance_window, { start_time = "", end_time = "" })
+
+  # Everything below is non-secret and is stored in state as the replacement
+  # trigger, so a notification is sent only when one of these values changes.
+  event = {
+    status        = var.maintenance_status
+    action        = contains(local.resolving_statuses, var.maintenance_status) ? "resolve" : "trigger"
+    schedule_name = var.schedule_name
+    environment   = var.environment
+    start_time    = local.window.start_time
+    end_time      = local.window.end_time
   }
 
-  # Create notification commands for each URL with proper type detection
-  # URLs are passed via WEBHOOK_URL environment variable to prevent command injection
-  notification_commands = {
-    for idx, url in var.notification_urls :
-    idx => contains(local.slack_urls, url) ? local.slack_notification_template :
-    contains(local.pagerduty_urls, url) ? local.pagerduty_notification_template :
-    contains(local.webhook_urls, url) ? local.webhook_notification_template :
-    "echo 'Unknown notification type'"
+  # Statuses that end maintenance. PagerDuty receives a resolve event for them,
+  # matched to the earlier trigger by dedup key.
+  resolving_statuses = ["DISABLED", "COMPLETED"]
+}
+
+resource "terraform_data" "notification" {
+  for_each = local.notification_names
+
+  triggers_replace = local.event
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/sh"]
+    command     = "${path.module}/notify.sh"
+    environment = {
+      NOTIFY_URL         = var.notification_urls[each.key]
+      NOTIFY_STATUS      = local.event.status
+      NOTIFY_ACTION      = local.event.action
+      NOTIFY_SCHEDULE    = local.event.schedule_name
+      NOTIFY_ENVIRONMENT = local.event.environment
+      NOTIFY_START       = local.event.start_time
+      NOTIFY_END         = local.event.end_time
+      NOTIFY_DEDUP_KEY   = "terraform-cloudflare-maintenance/${var.environment}/${var.schedule_name}"
+    }
   }
-
-  # Slack notification template
-  slack_notification_template = <<-EOT
-    curl -X POST "$WEBHOOK_URL" \
-      -H 'Content-Type: application/json' \
-      -d '{
-        "text": "Maintenance ${replace(var.maintenance_status, "'", "")}",
-        "blocks": [
-          {
-            "type": "header",
-            "text": {
-              "type": "plain_text",
-              "text": "Maintenance ${replace(var.maintenance_status, "'", "")}: ${replace(var.schedule_name, "'", "")}"
-            }
-          },
-          {
-            "type": "section",
-            "fields": [
-              {
-                "type": "mrkdwn",
-                "text": "*Status:*\n${replace(var.maintenance_status, "'", "")}"
-              },
-              {
-                "type": "mrkdwn",
-                "text": "*Window:*\n${replace(var.maintenance_window.start_time, "'", "")} - ${replace(var.maintenance_window.end_time, "'", "")}"
-              },
-              {
-                "type": "mrkdwn",
-                "text": "*Environment:*\n${replace(var.environment, "'", "")}"
-              },
-              {
-                "type": "mrkdwn",
-                "text": "*Schedule:*\n${replace(var.schedule_name, "'", "")}"
-              }
-            ]
-          }
-        ]
-      }'
-  EOT
-
-  # PagerDuty notification template
-  # WEBHOOK_URL contains the routing key, passed via environment variable
-  pagerduty_notification_template = <<-EOT
-    curl -X POST 'https://events.pagerduty.com/v2/enqueue' \
-      -H 'Content-Type: application/json' \
-      -d "$(jq -n --arg key "$WEBHOOK_URL" '{
-        "routing_key": $key,
-        "event_action": "trigger",
-        "payload": {
-          "summary": "Maintenance ${replace(var.maintenance_status, "'", "")}: ${replace(var.schedule_name, "'", "")}",
-          "severity": "warning",
-          "source": "terraform-cloudflare-maintenance",
-          "custom_details": {
-            "status": "${replace(var.maintenance_status, "'", "")}",
-            "environment": "${replace(var.environment, "'", "")}",
-            "schedule": "${replace(var.schedule_name, "'", "")}",
-            "start_time": "${replace(var.maintenance_window.start_time, "'", "")}",
-            "end_time": "${replace(var.maintenance_window.end_time, "'", "")}"
-          }
-        }
-      }')"
-  EOT
-
-  # Generic webhook notification template
-  webhook_notification_template = <<-EOT
-    curl -X POST "$WEBHOOK_URL" \
-      -H 'Content-Type: application/json' \
-      -d '{
-        "status": "${replace(var.maintenance_status, "'", "")}",
-        "schedule_name": "${replace(var.schedule_name, "'", "")}",
-        "environment": "${replace(var.environment, "'", "")}",
-        "maintenance_window": {
-          "start_time": "${replace(var.maintenance_window.start_time, "'", "")}",
-          "end_time": "${replace(var.maintenance_window.end_time, "'", "")}"
-        }
-      }'
-  EOT
 }

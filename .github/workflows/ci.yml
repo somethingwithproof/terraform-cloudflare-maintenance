@@ -156,3 +156,10 @@ jobs:
       # The test files use mock_provider, so no Cloudflare API calls or credentials.
       - name: Run OpenTofu Tests
         run: tofu test
+
+      # Plans only, so no notification is sent.
+      - name: Run notifications module tests
+        working-directory: modules/notifications
+        run: |
+          tofu init -backend=false
+          tofu test

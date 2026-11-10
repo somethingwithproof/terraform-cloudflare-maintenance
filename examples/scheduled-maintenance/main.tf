@@ -50,17 +50,18 @@ module "maintenance_notifications" {
   source = "../../modules/notifications"
   count  = var.enable_notifications ? 1 : 0
 
-  # Filter out empty notification URLs
-  notification_urls = compact([
-    var.slack_webhook_url,
-    var.pagerduty_routing_key,
-  ])
+  # Keys are non-secret names; empty URLs are left out.
+  notification_urls = {
+    for name, url in {
+      slack     = var.slack_webhook_url
+      pagerduty = var.pagerduty_routing_key
+    } : name => url if url != ""
+  }
 
   maintenance_status = module.maintenance.maintenance_status
   schedule_name      = "scheduled-maintenance"
   environment        = var.environment
-
-  maintenance_window = var.maintenance_window
+  maintenance_window = module.maintenance.maintenance_window
 }
 
 # Output maintenance information
