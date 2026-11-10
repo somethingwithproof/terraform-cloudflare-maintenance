@@ -51,10 +51,6 @@ run "verify_staging_environment" {
     error_message = "Worker route should be configured in staging environment"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created for IP bypass in staging environment"
-  }
 
   assert {
     condition     = output.maintenance_window.start_time == "2025-04-06T08:00:00Z"
@@ -111,10 +107,6 @@ run "verify_production_environment" {
     error_message = "Worker route should not be configured in production environment when disabled"
   }
 
-  assert {
-    condition     = output.ruleset_id == "No ruleset created"
-    error_message = "Ruleset should not be created in production environment when disabled"
-  }
 }
 
 # Test case 3: Variable validation for RFC3339 dates
@@ -184,8 +176,4 @@ run "verify_ip_configuration" {
     error_message = "Should include CA in allowed regions"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created when allowed IPs and regions are specified"
-  }
 }

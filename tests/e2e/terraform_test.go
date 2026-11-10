@@ -101,11 +101,7 @@ func TestMaintenanceModuleDisabled(t *testing.T) {
 	workerRoutePattern := terraform.Output(t, terraformOptions, "worker_route_pattern")
 	assert.Equal(t, "Maintenance mode disabled", workerRoutePattern, "Worker route should indicate disabled")
 
-	dnsRecordID := terraform.Output(t, terraformOptions, "dns_record_id")
-	assert.Equal(t, "No DNS record created", dnsRecordID, "No DNS record should be created when disabled")
 
-	rulesetID := terraform.Output(t, terraformOptions, "ruleset_id")
-	assert.Equal(t, "No ruleset created", rulesetID, "No ruleset should be created when disabled")
 }
 
 // TestMaintenanceModuleWithIPAllowlist tests IP allowlist functionality
@@ -140,9 +136,8 @@ func TestMaintenanceModuleWithIPAllowlist(t *testing.T) {
 
 	terraform.InitAndApply(t, terraformOptions)
 
-	// Validate ruleset is created
-	rulesetID := terraform.Output(t, terraformOptions, "ruleset_id")
-	assert.NotEqual(t, "No ruleset created", rulesetID, "Ruleset should be created for IP allowlist")
+	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
+	assert.Equal(t, "ENABLED", maintenanceStatus, "Maintenance should be enabled with an IP allowlist")
 }
 
 // TestMaintenanceModuleWithRegionAllowlist tests region allowlist functionality
@@ -178,8 +173,6 @@ func TestMaintenanceModuleWithRegionAllowlist(t *testing.T) {
 	terraform.InitAndApply(t, terraformOptions)
 
 	// Validate outputs
-	rulesetID := terraform.Output(t, terraformOptions, "ruleset_id")
-	assert.NotEqual(t, "No ruleset created", rulesetID, "Ruleset should be created for region allowlist")
 
 	allowedRegions := terraform.OutputList(t, terraformOptions, "allowed_regions")
 	assert.Len(t, allowedRegions, 3, "Should have 3 allowed regions")
@@ -457,8 +450,6 @@ func TestMaintenanceModuleCombinedFeatures(t *testing.T) {
 	maintenanceStatus := terraform.Output(t, terraformOptions, "maintenance_status")
 	assert.Equal(t, "ENABLED", maintenanceStatus)
 
-	rulesetID := terraform.Output(t, terraformOptions, "ruleset_id")
-	assert.NotEqual(t, "No ruleset created", rulesetID)
 
 	allowedRegions := terraform.OutputList(t, terraformOptions, "allowed_regions")
 	assert.Len(t, allowedRegions, 2)

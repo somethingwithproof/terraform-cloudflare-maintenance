@@ -109,9 +109,8 @@ notification_urls = ["webhook://https://example.com/webhook"]
 
 Test the maintenance page by:
 
-1. Accessing your domain from a non-allowed IP
-2. Checking the maintenance status page at `https://maintenance-status-{environment}.{domain}`
-3. Verifying notifications are sent (if configured)
+1. Accessing your domain from a non-allowed IP during the window
+2. Verifying notifications are sent (if configured)
 
 ## Cleanup
 

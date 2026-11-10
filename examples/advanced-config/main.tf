@@ -33,29 +33,6 @@ module "maintenance" {
   logo_url   = "https://example.com/logo-large.png"
 }
 
-# Create a DNS record for direct access to maintenance page
-resource "cloudflare_record" "maintenance_status" {
-  zone_id = var.cloudflare_zone_id
-  name    = "status"
-  content = "100::" # IPv6 placeholder for Worker routes
-  type    = "AAAA"
-  proxied = true
-  ttl     = 1
-}
-
-# Create a Page Rule to bypass cache during maintenance
-resource "cloudflare_page_rule" "maintenance_bypass_cache" {
-  zone_id  = var.cloudflare_zone_id
-  target   = "example.com/*"
-  priority = 1
-
-  actions {
-    cache_level = "bypass"
-  }
-
-  status = module.maintenance.maintenance_status == "ENABLED" ? "active" : "disabled"
-}
-
 # Notify monitoring system about maintenance window
 resource "null_resource" "maintenance_notification" {
   count = var.environment == "production" && module.maintenance.maintenance_status == "ENABLED" ? 1 : 0

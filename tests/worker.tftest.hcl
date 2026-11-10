@@ -79,10 +79,6 @@ run "verify_worker_config_with_customization" {
     error_message = "Maintenance window end time should be properly configured"
   }
 
-  assert {
-    condition     = output.maintenance_page_url != "Maintenance mode disabled"
-    error_message = "Maintenance page URL should be configured with custom settings"
-  }
 }
 
 # Test case 3: Test worker with allowed IPs configuration
@@ -106,10 +102,6 @@ run "verify_worker_with_allowed_ips" {
     error_message = "Worker script should be created with IP bypass configuration"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created for IP bypass when allowed IPs are specified"
-  }
 
   assert {
     condition     = output.maintenance_status == "ENABLED"
@@ -138,10 +130,6 @@ run "verify_worker_with_ip_ranges" {
     error_message = "Worker script should be created with IP range bypass configuration"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created for IP range bypass"
-  }
 
   assert {
     condition     = output.maintenance_status == "ENABLED"
@@ -170,10 +158,6 @@ run "verify_worker_with_regional_bypass" {
     error_message = "Worker script should be created with regional bypass configuration"
   }
 
-  assert {
-    condition     = output.ruleset_id != "No ruleset created"
-    error_message = "Ruleset should be created for regional bypass"
-  }
 
   assert {
     condition     = length(output.allowed_regions) == 3
@@ -216,15 +200,7 @@ run "verify_disabled_worker_configuration" {
     error_message = "Worker route should not be configured when maintenance is disabled"
   }
 
-  assert {
-    condition     = output.dns_record_id == "No DNS record created"
-    error_message = "DNS record should not be created when maintenance is disabled"
-  }
 
-  assert {
-    condition     = output.ruleset_id == "No ruleset created"
-    error_message = "Ruleset should not be created when maintenance is disabled"
-  }
 }
 run "reject_malformed_allowed_ip" {
   command = plan

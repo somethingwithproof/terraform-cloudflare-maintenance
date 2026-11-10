@@ -8,21 +8,6 @@ output "maintenance_status" {
   value       = module.maintenance.maintenance_status
 }
 
-output "maintenance_page_url" {
-  description = "URL to access the maintenance page directly"
-  value       = module.maintenance.maintenance_page_url
-}
-
-output "status_page_url" {
-  description = "URL to the dedicated status page"
-  value       = "https://status.${trimsuffix(cloudflare_record.maintenance_status.zone_name, "/*")}"
-}
-
-output "firewall_rule_id" {
-  description = "ID of the firewall rule for IP allowlisting (if enabled)"
-  value       = module.maintenance.firewall_rule_id
-}
-
 output "maintenance_window" {
   description = "Configured maintenance window"
   value = {
