@@ -58,6 +58,18 @@ describe("with an override", () => {
     expect(response.headers.get("Retry-After")).toBe("3600");
   });
 
+  it("serves the page for on, outside a future Terraform window", async () => {
+    // What scripts/maintenance on stores.
+    await setState({ enabled: true, window: null });
+    const response = await serve({
+      MAINTENANCE_ENABLED: "false",
+      MAINTENANCE_WINDOW_START: "2030-04-07T08:00:00Z",
+      MAINTENANCE_WINDOW_END: "2030-04-07T10:00:00Z",
+    });
+    expect(response.status).toBe(503);
+    expect(response.headers.get("Retry-After")).toBe("3600");
+  });
+
   it("counts Retry-After down to the end of an override window", async () => {
     await setState({ window: { start_time: "2030-04-06T08:00:00Z", end_time: "2030-04-06T09:30:00Z" } });
     const response = await serve({ MAINTENANCE_ENABLED: "false" });

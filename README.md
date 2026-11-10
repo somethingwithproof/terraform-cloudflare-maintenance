@@ -458,7 +458,9 @@ environment, with that environment's `CF_API_TOKEN`, `CF_ACCOUNT_ID` and
 - **Precedence.** The override is one KV value. Each field it sets
   (`enabled`, `window`, `title`, `message`) replaces the Terraform value, and
   a title or message set there replaces `pages` too. Terraform never writes
-  the value, so an apply does not undo a toggle; `clear` does.
+  the value, so an apply does not undo a toggle; `clear` does. `on` and
+  `off` also remove the Terraform window, because the Worker ignores
+  `enabled` while a window is set.
 - **Propagation.** Each edge location caches the value for
   `cache_ttl_seconds` (default 60, minimum 30) and KV takes up to about a
   minute to propagate a write, so allow up to two minutes.
