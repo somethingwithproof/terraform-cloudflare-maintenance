@@ -21,20 +21,12 @@ async function handleRequest(request) {
     return fetch(request);
   }
 
-  // Validate and sanitize logo URL to prevent XSS
-  let logoHtml = "";
-  if (LOGO_URL && isValidHttpsUrl(LOGO_URL)) {
-    // Additional check for javascript: and data: URIs
-    const lowerUrl = LOGO_URL.toLowerCase();
-    if (!lowerUrl.startsWith("javascript:") && !lowerUrl.startsWith("data:")) {
-      const sanitizedUrl = LOGO_URL.replace(/['"<>`&]/g, "");
-      logoHtml = `<img src="${sanitizedUrl}" alt="Logo" style="max-width: 200px; margin-bottom: 1rem;">`;
-    }
-  }
+  // Only HTTPS logos; the URL is HTML-escaped for the attribute it sits in.
+  const logoHtml = isValidHttpsUrl(LOGO_URL)
+    ? `<img src="${escapeHtml(LOGO_URL)}" alt="Logo" style="max-width: 200px; margin-bottom: 1rem;">`
+    : "";
 
-  // Alright, time to show everyone the "We'll be right back" page
-  // This HTML is nicer than the default 503 error at least
-  const customStyles = (CUSTOM_CSS || "").replace(/<\/style>/gi, "");
+  const customStyles = escapeCss(CUSTOM_CSS);
 
   // Sanitize contact email to prevent XSS
   const sanitizedEmail = sanitizeEmail(CONTACT_EMAIL || "");
@@ -81,21 +73,32 @@ async function handleRequest(request) {
 </body>
 </html>`;
 
-  // Return a 503 because we're being honest about the service being unavailable
-  // The Retry-After header is optimistic, but hey, we can hope
+  // 503 tells clients and crawlers the outage is temporary; Retry-After says
+  // when to come back.
   return new Response(html, {
     status: 503,
     headers: {
       "Content-Type": "text/html;charset=UTF-8",
-      "Cache-Control": "no-store, no-cache, must-revalidate", // Don't cache this disaster
-      "Retry-After": "3600", // Try again in an hour (fingers crossed we're done by then)
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Retry-After": String(retryAfterSeconds(new Date())),
       "Content-Security-Policy":
-        "default-src 'none'; style-src 'unsafe-inline'; img-src https:;",
+        "default-src 'none'; style-src 'unsafe-inline'; img-src https:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'",
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "no-referrer",
     },
   });
+}
+
+// Seconds until the window ends while inside one, otherwise RETRY_AFTER
+// (default 3600). Never less than 1.
+function retryAfterSeconds(now) {
+  const window = maintenanceWindow();
+  if (window && now >= window.start && now < window.end) {
+    return Math.max(1, Math.ceil((window.end - now) / 1000));
+  }
+  const configured = Number.parseInt(RETRY_AFTER, 10);
+  return Number.isInteger(configured) && configured > 0 ? configured : 3600;
 }
 
 // With a scheduled window the page is served only from its start (inclusive)
@@ -137,6 +140,14 @@ function isValidHttpsUrl(url) {
   } catch {
     return false;
   }
+}
+
+// Custom CSS goes inside <style>, where HTML escaping does not apply and the
+// first "</style" in any spelling ends the element. Writing every "<" as the
+// CSS escape \3C leaves no tag the HTML parser can see, and still means "<"
+// to CSS (for example inside a content string).
+function escapeCss(css) {
+  return (css || "").replace(/</g, "\\3C ");
 }
 
 function escapeHtml(str) {

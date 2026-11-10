@@ -14,6 +14,7 @@ const workerBindings = Object.fromEntries(
     "LOGO_URL",
     "MAINTENANCE_WINDOW_START",
     "MAINTENANCE_WINDOW_END",
+    "RETRY_AFTER",
     "ALLOWED_IPS",
     "ALLOWED_REGIONS",
   ].map((name) => [name, "readonly"]),
