@@ -93,27 +93,163 @@ run "reject_non_rfc3339_window" {
   expect_failures = [var.maintenance_window]
 }
 
-run "reject_malformed_allowed_ip" {
+# Applied, because later runs can only read outputs of applied runs. The
+# fixtures module has no resources.
+run "fixtures" {
+  command = apply
+
+  module {
+    source = "./tests/fixtures"
+  }
+
+  # One reject run per invalid entry follows; update them with the fixture.
+  assert {
+    condition     = length(output.invalid_allowed_ips) == 13
+    error_message = "tests/fixtures/allowed-ips.json changed; add or remove reject_invalid_allowed_ip_* runs to match"
+  }
+}
+
+run "accept_every_valid_allowed_ip" {
   command = plan
 
   variables {
-    allowed_ips = ["192.0.2.1", "198.51.100.0/33"]
+    allowed_ips = run.fixtures.valid_allowed_ips
+  }
+
+  assert {
+    condition     = one([for b in cloudflare_workers_script.maintenance.bindings : b.text if b.name == "ALLOWED_IPS"]) == jsonencode(var.allowed_ips) && length(var.allowed_ips) == 14
+    error_message = "ALLOWED_IPS binding should carry the allowlist as JSON"
+  }
+}
+
+run "reject_invalid_allowed_ip_0" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[0]]
   }
 
   expect_failures = [var.allowed_ips]
 }
 
-run "accept_ipv4_ipv6_and_cidr_allowed_ips" {
+run "reject_invalid_allowed_ip_1" {
   command = plan
 
   variables {
-    allowed_ips = ["192.0.2.1", "198.51.100.0/24", "2001:db8::1", "2001:db8::/32", "::ffff:192.0.2.1"]
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[1]]
   }
 
-  assert {
-    condition     = one([for b in cloudflare_workers_script.maintenance.bindings : b.text if b.name == "ALLOWED_IPS"]) == jsonencode(var.allowed_ips)
-    error_message = "ALLOWED_IPS binding should carry the allowlist as JSON"
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_2" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[2]]
   }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_3" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[3]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_4" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[4]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_5" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[5]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_6" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[6]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_7" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[7]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_8" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[8]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_9" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[9]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_10" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[10]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_11" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[11]]
+  }
+
+  expect_failures = [var.allowed_ips]
+}
+
+run "reject_invalid_allowed_ip_12" {
+  command = plan
+
+  variables {
+    allowed_ips = ["192.0.2.1", run.fixtures.invalid_allowed_ips[12]]
+  }
+
+  expect_failures = [var.allowed_ips]
 }
 
 run "reject_lowercase_region" {

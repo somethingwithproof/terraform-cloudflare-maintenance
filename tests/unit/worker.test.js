@@ -12,6 +12,9 @@ import { runInNewContext } from "node:vm";
 import { describe, it, expect, vi } from "vitest";
 
 const workerUrl = new URL("../../worker.js", import.meta.url);
+const allowedIpFixtures = JSON.parse(
+  readFileSync(new URL("../fixtures/allowed-ips.json", import.meta.url), "utf8"),
+);
 const workerSource = readFileSync(workerUrl, "utf8");
 
 const defaultBindings = {
@@ -293,6 +296,20 @@ describe("isAllowedIp", () => {
     expect(allowed("1:2:3:4:5:6:7:8:9", "::/0")).toBe(false);
     expect(allowed("2001:db8::g", "::/0")).toBe(false);
     expect(allowed(null, "0.0.0.0/0")).toBe(false);
+  });
+});
+
+// tests/worker.tftest.hcl checks the same entries against the allowed_ips
+// validation, so plan accepts exactly what the Worker can match.
+describe("allowlist entries shared with the OpenTofu validation", () => {
+  const { parseCidr } = loadWorker();
+
+  it.each(allowedIpFixtures.valid)("accepts %s", (entry) => {
+    expect(parseCidr(entry)).not.toBeNull();
+  });
+
+  it.each(allowedIpFixtures.invalid)("rejects %s", (entry) => {
+    expect(parseCidr(entry)).toBeNull();
   });
 });
 

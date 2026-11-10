@@ -45,12 +45,29 @@ variable "allowed_ips" {
   type        = list(string)
   default     = []
 
+  # The same grammar the Worker's parseCidr accepts, so that nothing passes
+  # plan only to be ignored at the edge. cidrhost() alone also accepts
+  # leading zeros in IPv4 octets and IPv4-mapped IPv6 prefixes shorter than
+  # 96, both of which the Worker rejects. tests/fixtures/allowed-ips.json
+  # holds the cases both sides are tested against.
   validation {
     condition = alltrue([
-      for ip in var.allowed_ips :
-      can(cidrhost(strcontains(ip, "/") ? ip : "${ip}/${strcontains(ip, ":") ? 128 : 32}", 0))
+      for ip in var.allowed_ips : (
+        can(cidrhost(strcontains(ip, "/") ? ip : "${ip}/${strcontains(ip, ":") ? 128 : 32}", 0)) &&
+        # No IPv4 octet, alone or embedded in IPv6, with a leading zero.
+        !can(regex("(^|[.:])0[0-9]+[.]|[.]0[0-9]+([./]|$)", ip)) &&
+        # cidrhost() writes an IPv4-mapped address without colons; such a
+        # range must keep the 96-bit ::ffff: prefix. && does not short-
+        # circuit, so try() absorbs the errors this raises for IPv4 entries
+        # and plain addresses; the first check has judged those already.
+        try(!(
+          strcontains(ip, ":") &&
+          !strcontains(cidrhost("${split("/", ip)[0]}/128", 0), ":") &&
+          tonumber(split("/", ip)[1]) < 96
+        ), true)
+      )
     ])
-    error_message = "Each allowed_ips entry must be an IPv4 or IPv6 address or CIDR range (e.g., 192.0.2.10, 198.51.100.0/24, 2001:db8::/32)."
+    error_message = "Each allowed_ips entry must be an IPv4 or IPv6 address or CIDR range (e.g., 192.0.2.10, 198.51.100.0/24, 2001:db8::/32), with no leading zeros in IPv4 octets and a prefix of at least 96 for IPv4-mapped IPv6 ranges."
   }
 }
 

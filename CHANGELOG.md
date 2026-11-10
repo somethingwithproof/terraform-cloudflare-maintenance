@@ -67,6 +67,12 @@ All notable changes to this module are documented here. The format follows
 
 ### Fixed
 
+- `allowed_ips` validation now rejects the entries the Worker ignores: IPv4
+  octets with leading zeros (`010.0.0.1`) and IPv4-mapped IPv6 ranges with a
+  prefix shorter than 96. Before, such entries passed plan and silently
+  matched nobody. Both sides are tested against one shared fixture,
+  `tests/fixtures/allowed-ips.json`.
+
 - The rate limiting rule uses `expression = "true"` instead of a `matches`
   regex, which needs a Business or Enterprise plan.
 
