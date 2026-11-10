@@ -26,6 +26,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Architecture](#architecture)
 - [Input Variables](#input-variables)
 - [Outputs](#outputs)
+- [Upgrading from Cloudflare Provider v4 State](#upgrading-from-cloudflare-provider-v4-state)
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -292,9 +293,25 @@ For a complete list of variables, see [variables.tf](variables.tf).
 | dns_record_id | ID of the DNS record for the maintenance status page |
 | ruleset_id | ID of the firewall ruleset for IP/region allowlisting |
 | allowed_regions | List of allowed regions that can bypass maintenance |
-| schedules | Validated cron-based maintenance schedules, for external automation |
+| schedules | Cron-based maintenance schedules for external automation (validation checks the five-field cron shape only, not value ranges) |
 
 For a complete list of outputs, see [outputs.tf](outputs.tf).
+
+## Upgrading from Cloudflare Provider v4 State
+
+The module uses the Cloudflare provider v5 schema. Provider v5 renamed the
+status-page DNS record resource from `cloudflare_record` to
+`cloudflare_dns_record`, so state written by a v4-era release of this module
+must be re-associated before the first v5 plan. Replace `module.maintenance`
+with your module address and keep the zone and record IDs from your v4 state:
+
+```bash
+tofu state rm 'module.maintenance.cloudflare_record.maintenance_status[0]'
+tofu import 'module.maintenance.cloudflare_dns_record.maintenance_status[0]' '<zone_id>/<dns_record_id>'
+```
+
+`cloudflare_workers_script`, `cloudflare_workers_route` and `cloudflare_ruleset`
+keep their resource types; the provider upgrades their state during the next plan.
 
 ## Cron Expression Reference
 

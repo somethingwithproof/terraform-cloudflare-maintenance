@@ -82,6 +82,6 @@ output "rate_limit_enabled" {
 }
 
 output "schedules" {
-  description = "Validated cron-based maintenance schedules, for use by external automation that toggles maintenance mode"
+  description = "Cron-based maintenance schedules for external automation that toggles maintenance mode (validation checks the cron field shape only)"
   value       = var.schedules
 }
