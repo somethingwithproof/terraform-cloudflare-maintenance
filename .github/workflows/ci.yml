@@ -85,7 +85,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@0c688f0e33c43029df9334b85caeff28837a53bd # v6
+        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
         with:
           tflint_version: v0.50.0
 
