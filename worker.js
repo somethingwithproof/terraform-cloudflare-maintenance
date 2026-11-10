@@ -24,7 +24,7 @@ async function handleRequest(request) {
   let allowedIPs = [];
   try {
     allowedIPs = JSON.parse(ALLOWED_IPS || "[]");
-  } catch (e) {
+  } catch {
     // Invalid JSON, skip IP check
   }
   if (clientIP && allowedIPs.includes(clientIP)) {
@@ -37,7 +37,7 @@ async function handleRequest(request) {
   let allowedRegions = [];
   try {
     allowedRegions = JSON.parse(ALLOWED_REGIONS || "[]");
-  } catch (e) {
+  } catch {
     // Invalid JSON, skip region check
   }
   if (country && allowedRegions.includes(country)) {
@@ -135,7 +135,7 @@ function checkMaintenanceWindow(now) {
     const start = new Date(startTime);
     const end = new Date(endTime);
     return now >= start && now <= end;
-  } catch (e) {
+  } catch {
     // Invalid dates, ignore the maintenance window
     return false;
   }
@@ -153,7 +153,7 @@ function getMaintenanceWindowMessage() {
     const end = new Date(endTime);
     if (Number.isNaN(end.getTime())) return "";
     return `<p style="font-size: 0.9rem; color: #888;">Expected completion: ${end.toUTCString()}</p>`;
-  } catch (e) {
+  } catch {
     return "";
   }
 }
@@ -162,7 +162,7 @@ function isValidHttpsUrl(url) {
   try {
     const parsedUrl = new URL(url);
     return parsedUrl.protocol === "https:";
-  } catch (e) {
+  } catch {
     return false;
   }
 }

@@ -10,12 +10,14 @@
     "test:coverage": "vitest run --coverage",
     "test:unit": "vitest run --dir unit",
     "test:integration": "vitest run --dir integration",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint": "cd .. && eslint --config tests/eslint.config.js worker.js tests",
+    "lint:fix": "cd .. && eslint --config tests/eslint.config.js worker.js tests --fix"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^10.14.0",
+    "globals": "^17.13.0",
     "miniflare": "^4.20260730.0",
     "vitest": "^5.0.5"
   },
