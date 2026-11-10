@@ -252,3 +252,13 @@ run "reject_script_name_ending_in_a_dash" {
 
   expect_failures = [cloudflare_workers_script.maintenance]
 }
+
+run "reject_empty_script_name" {
+  command = plan
+
+  variables {
+    script_name = ""
+  }
+
+  expect_failures = [cloudflare_workers_script.maintenance]
+}

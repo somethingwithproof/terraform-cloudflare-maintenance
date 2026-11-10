@@ -2,9 +2,11 @@ locals {
   # One Worker per module instance. Two instances in one account with the same
   # name would overwrite each other's code and bindings, and destroying one
   # would delete the Worker the other routes to.
-  script_name = coalesce(
-    var.script_name,
-    "maintenance-page-${trim(replace(lower(var.environment), "/[^a-z0-9]+/", "-"), "-")}",
+  # Not coalesce(): an empty script_name must fail the name check below
+  # rather than silently fall back to the default.
+  script_name = (
+    var.script_name != null ? var.script_name :
+    "maintenance-page-${trim(replace(lower(var.environment), "/[^a-z0-9]+/", "-"), "-")}"
   )
 }
 
@@ -15,6 +17,11 @@ resource "cloudflare_workers_script" "maintenance" {
   content     = file("${path.module}/worker.js")
 
   lifecycle {
+    # Renaming replaces the Worker. Create the new one first so the route can
+    # move to it before the old one is deleted, instead of pointing at a
+    # deleted Worker in between.
+    create_before_destroy = true
+
     precondition {
       # Checked here rather than in a variable validation so that the name
       # derived from environment is checked by the same rule.

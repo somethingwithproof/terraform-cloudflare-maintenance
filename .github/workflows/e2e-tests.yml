@@ -164,7 +164,24 @@ jobs:
       - name: Download Go dependencies
         run: go mod download
 
+      # The tests skip without these, which go test reports as a pass; say so
+      # loudly instead of letting a misnamed secret look like a green run.
+      - name: Check E2E configuration
+        id: config
+        run: |
+          missing=()
+          for name in CLOUDFLARE_API_TOKEN CF_E2E_ACCOUNT_ID CF_E2E_ZONE_ID CF_E2E_ZONE_NAME; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::warning::E2E tests skipped; not configured: ${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Terratest E2E tests
+        if: steps.config.outputs.ready == 'true'
         run: go test -v -timeout 30m ./...
 
   # Security scanning

@@ -264,19 +264,38 @@ func TestMaintenanceModuleValidationErrors(t *testing.T) {
 	t.Parallel()
 	cfg := requireConfig(t)
 
-	cases := map[string]map[string]interface{}{
-		"rate limit period too low": {"rate_limit": map[string]interface{}{"enabled": true, "period": 5}},
-		"unknown rate limit action": {"rate_limit": map[string]interface{}{"enabled": true, "action": "invalid_action"}},
-		"three-letter region code":  {"allowed_regions": []string{"USA"}},
-		"invalid script name":       {"script_name": "Not_Valid"},
+	// Each case names a fragment of its own diagnostic, so an unrelated
+	// failure (credentials, network, provider) does not count as a pass.
+	cases := map[string]struct {
+		vars    map[string]interface{}
+		wantErr string
+	}{
+		"rate limit period too low": {
+			vars:    map[string]interface{}{"rate_limit": map[string]interface{}{"enabled": true, "period": 5}},
+			wantErr: "period must be between 10",
+		},
+		"unknown rate limit action": {
+			vars:    map[string]interface{}{"rate_limit": map[string]interface{}{"enabled": true, "action": "invalid_action"}},
+			wantErr: "action must be one of",
+		},
+		"three-letter region code": {
+			vars:    map[string]interface{}{"allowed_regions": []string{"USA"}},
+			wantErr: "ISO 3166-1 alpha-2",
+		},
+		"invalid script name": {
+			vars:    map[string]interface{}{"script_name": "Not_Valid"},
+			wantErr: "Worker script name",
+		},
 	}
 
-	for name, vars := range cases {
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			opts := moduleOptions(t, cfg, vars)
+			opts := moduleOptions(t, cfg, tc.vars)
 			_, err := terraform.InitAndPlanE(t, opts)
 			require.Error(t, err)
+			// Diagnostics are wrapped across lines.
+			assert.Contains(t, strings.Join(strings.Fields(err.Error()), " "), tc.wantErr)
 		})
 	}
 }
