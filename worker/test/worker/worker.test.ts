@@ -90,6 +90,18 @@ describe("sanitizeEmail", () => {
   it("returns valid addresses unchanged", () => {
     expect(sanitizeEmail("test@example.com")).toBe("test@example.com");
     expect(sanitizeEmail("user+tag@example.co.uk")).toBe("user+tag@example.co.uk");
+    expect(sanitizeEmail("ops@a.b")).toBe("ops@a.b");
+  });
+
+  it("removes & from an otherwise valid address", () => {
+    expect(sanitizeEmail("r&d@example.com")).toBe("rd@example.com");
+  });
+
+  it("checks long addresses in linear time", () => {
+    const hostile = `!@!.${"!.".repeat(50_000)}`;
+    const started = Date.now();
+    expect(sanitizeEmail(`${hostile}@`)).toBe("");
+    expect(Date.now() - started).toBeLessThan(100);
   });
 
   it("rejects malformed addresses and markup", () => {
@@ -103,6 +115,10 @@ describe("sanitizeEmail", () => {
       "test'@example.com",
       'test"@example.com',
       "test@<img src=x onerror=alert(1)>.com",
+      "a@b@example.com",
+      "test@.com",
+      "test@example.",
+      "test@exa mple.com",
     ]) {
       expect(sanitizeEmail(email)).toBe("");
     }

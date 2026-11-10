@@ -21,9 +21,11 @@ function isValidHttpsUrl(url) {
 }
 __name(isValidHttpsUrl, "isValidHttpsUrl");
 function sanitizeEmail(email) {
-  const emailRegex = /^[^\s@<>'"]+@[^\s@<>'"]+\.[^\s@<>'"]+$/;
-  if (!email || !emailRegex.test(email)) return "";
-  return email.replace(/[<>'"&]/g, "");
+  if (!email || /[\s<>'"]/.test(email)) return "";
+  const at = email.indexOf("@");
+  if (at <= 0 || at !== email.lastIndexOf("@")) return "";
+  if (!email.slice(at + 2, -1).includes(".")) return "";
+  return email.replace(/&/g, "");
 }
 __name(sanitizeEmail, "sanitizeEmail");
 var DEFAULT_TITLE = "Maintenance Mode";
