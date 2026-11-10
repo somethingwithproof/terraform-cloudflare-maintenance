@@ -21,7 +21,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GO_VERSION: "1.22"
   NODE_VERSION: "24"
   TOFU_VERSION: "1.8.10"
 
@@ -133,11 +132,16 @@ jobs:
       run:
         working-directory: tests/e2e
     # The Go tests read these and skip when any is missing; the provider reads
-    # CLOUDFLARE_API_TOKEN directly.
+    # CLOUDFLARE_API_TOKEN directly. Use a dedicated test zone: the tests
+    # create Workers and routes there. CF_E2E_RATE_LIMIT_ZONE_ID is optional
+    # and must be a throwaway zone, because that test deletes the zone's rate
+    # limiting rules.
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_E2E_API_TOKEN }}
+      CF_E2E_ACCOUNT_ID: ${{ secrets.CF_E2E_ACCOUNT_ID }}
+      CF_E2E_ZONE_ID: ${{ secrets.CF_E2E_ZONE_ID }}
+      CF_E2E_ZONE_NAME: ${{ vars.CF_E2E_ZONE_NAME }}
+      CF_E2E_RATE_LIMIT_ZONE_ID: ${{ secrets.CF_E2E_RATE_LIMIT_ZONE_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
@@ -147,7 +151,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: tests/e2e/go.mod
           cache-dependency-path: tests/e2e/go.sum
 
       - name: Setup OpenTofu
@@ -160,7 +164,24 @@ jobs:
       - name: Download Go dependencies
         run: go mod download
 
+      # The tests skip without these, which go test reports as a pass; say so
+      # loudly instead of letting a misnamed secret look like a green run.
+      - name: Check E2E configuration
+        id: config
+        run: |
+          missing=()
+          for name in CLOUDFLARE_API_TOKEN CF_E2E_ACCOUNT_ID CF_E2E_ZONE_ID CF_E2E_ZONE_NAME; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::warning::E2E tests skipped; not configured: ${missing[*]}"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Terratest E2E tests
+        if: steps.config.outputs.ready == 'true'
         run: go test -v -timeout 30m ./...
 
   # Security scanning
