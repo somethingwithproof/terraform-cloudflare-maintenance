@@ -95,7 +95,7 @@ jobs:
       # worker.js lives at the repo root; its Vitest suites live in tests/.
       - name: Install dependencies
         working-directory: tests
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Run tests
         working-directory: tests
