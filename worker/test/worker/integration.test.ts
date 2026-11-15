@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Integration tests: requests go through the Worker's default export in
 // workerd, with the bindings from wrangler.json, and requests passed through
 // reach the stand-in origin configured in vitest.config.ts (no mocks).

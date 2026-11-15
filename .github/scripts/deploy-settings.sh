@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Turns a GitHub environment's deploy settings into TF_VAR_ lines in
 # GITHUB_ENV for the deploy/ root, failing on anything missing or malformed
 # before tofu init, so a run can never fall back to local state or apply

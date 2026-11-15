@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Whether maintenance is on, from the enabled flag and the optional window.
 
 export interface MaintenanceWindow {

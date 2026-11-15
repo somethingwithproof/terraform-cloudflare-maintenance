@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // The runtime toggle: an optional override read from Workers KV, written by
 // scripts/maintenance. Terraform's bindings are the defaults; any field the
 // override sets replaces them until the override is cleared.

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Sends a Slack, PagerDuty or generic webhook notification on each apply that
 # changes the maintenance status or window.
 

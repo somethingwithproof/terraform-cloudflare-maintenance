@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 variable "cloudflare_account_id" {
   description = "Cloudflare account ID"
   type        = string

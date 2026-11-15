@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Applies the notifications module for real, with a stub curl on PATH, and
 # checks the PagerDuty events across a change of environment: the incident
 # opened under the old dedup key must be resolved before the new one is

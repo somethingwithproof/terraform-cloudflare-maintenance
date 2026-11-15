@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Package test contains end-to-end tests for the Terraform Cloudflare Maintenance module.
 //
 // The tests apply the module to a real Cloudflare account and zone, so they

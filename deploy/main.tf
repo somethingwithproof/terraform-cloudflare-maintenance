@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Root configuration that the CD workflow applies, one HCP Terraform workspace
 # per environment. The module at the repository root stays backend-free so it
 # can be reused; only this root stores state.

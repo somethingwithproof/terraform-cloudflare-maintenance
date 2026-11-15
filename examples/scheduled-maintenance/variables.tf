@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 variable "cloudflare_api_token" {
   description = "Cloudflare API token"
   type        = string

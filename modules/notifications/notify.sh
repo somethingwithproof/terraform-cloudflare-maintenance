@@ -1,4 +1,7 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Sends one maintenance notification. Run by the local-exec provisioners in
 # main.tf and by scripts/maintenance. Every input arrives through the
 # environment, so the target URL is never part of a command line, a plan or

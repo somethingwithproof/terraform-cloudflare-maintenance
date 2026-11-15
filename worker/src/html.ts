@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Escaping and rendering of the maintenance page. Every value from the
 // bindings is escaped for the context it lands in.
 

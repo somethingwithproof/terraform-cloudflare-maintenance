@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 output "worker_id" {
   description = "The ID of the deployed worker script"
   value       = cloudflare_workers_script.maintenance.id
