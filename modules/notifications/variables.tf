@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 variable "notification_urls" {
   description = "Notification targets keyed by a non-secret name, for example { ops_slack = \"slack://T000/B000/XXXX\" }. Values use slack://<webhook path>, pagerduty://<routing key> or webhook://https://<url>. Names appear in plans and state; URLs never do."
   type        = map(string)

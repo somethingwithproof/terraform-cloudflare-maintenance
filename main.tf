@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 locals {
   # One Worker per module instance. Two instances in one account with the same
   # name would overwrite each other's code and bindings, and destroying one

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 name: Toggle maintenance
 
 # Switches the maintenance page through the module's runtime toggle

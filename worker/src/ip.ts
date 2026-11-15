@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // IPv4 and IPv6 allowlist matching. Addresses are compared numerically, so
 // every IPv6 spelling of an address matches, and IPv4-mapped IPv6
 // (::ffff:192.0.2.1) matches IPv4. The allowed_ips validation in

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 output "maintenance_status" {
   description = "SCHEDULED, ENABLED or DISABLED"
   value       = module.maintenance.maintenance_status

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Tests of scripts/maintenance with a stub curl, so nothing reaches
 // Cloudflare or a notification service.
 

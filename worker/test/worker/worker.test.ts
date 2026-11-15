@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Tests of the Worker's request handling, run inside workerd. Each test
 // passes its own bindings and clock to handleRequest, so the page logic and
 // the response under test are the shipped ones.

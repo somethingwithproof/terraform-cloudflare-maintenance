@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
 

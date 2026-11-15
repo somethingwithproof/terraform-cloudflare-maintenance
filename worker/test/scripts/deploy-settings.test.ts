@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Tests of .github/scripts/deploy-settings.sh, which cd.yml and drift.yml
 // run to turn a GitHub environment's settings into TF_VAR_ lines.
 

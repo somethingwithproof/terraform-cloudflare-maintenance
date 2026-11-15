@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025-2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Core resources: the Worker script is always deployed; the route whenever
 # maintenance is enabled or a maintenance window is set. Plans run against a
 # mocked provider, so no test ever calls the Cloudflare API.

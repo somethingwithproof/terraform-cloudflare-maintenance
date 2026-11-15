@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // The KV toggle against workerd's local KV, with the Worker's other
 // bindings from wrangler.json.
 

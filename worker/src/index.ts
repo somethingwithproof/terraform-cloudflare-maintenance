@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025-2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 // Maintenance page Worker. Terraform deploys the bundle built from this file
 // (dist/index.js) and sets every Env value as a binding; see main.tf.
 

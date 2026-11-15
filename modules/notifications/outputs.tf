@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 output "notification_count" {
   description = "Number of notification targets configured"
   value       = length(local.notification_names)

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+# SPDX-License-Identifier: MIT
+
 # Runs the test suites locally.
 # Usage: ./scripts/run-tests.sh [--worker] [--terraform] [--e2e] [--coverage]
 #

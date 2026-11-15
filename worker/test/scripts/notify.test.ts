@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
+// SPDX-License-Identifier: MIT
+
 /**
  * Runs modules/notifications/notify.sh with a stub curl on PATH and checks
  * what it would send. Requires sh and jq, as the provisioner does.
