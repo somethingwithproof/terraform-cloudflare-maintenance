@@ -1,0 +1,10 @@
+{
+  "contact": "יצירת קשר: {email}",
+  "expectedCompletion": "סיום משוער: {time}",
+  "languageName": "עברית",
+  "logoAlt": "לוגו",
+  "message": "אנו מבצעים כעת תחזוקה מתוכננת. נשוב בקרוב.",
+  "retryNotice": "אנא בדקו שוב בקרוב.",
+  "statusUnavailable": "השירות אינו זמין זמנית",
+  "title": "מצב תחזוקה"
+}

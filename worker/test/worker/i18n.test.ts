@@ -19,9 +19,11 @@ function extractPlaceholders(value: string): string[] {
   return [...value.matchAll(PLACEHOLDER_RE)].map((m) => m[0]).sort();
 }
 
+const RTL_LOCALES = new Set(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
+
 describe("i18n catalogs", () => {
-  it("supports all 20 Tier 1 locales with 100% key and placeholder parity", () => {
-    expect(SUPPORTED_LOCALES).toHaveLength(20);
+  it("supports all 45 locales with 100% key and placeholder parity", () => {
+    expect(SUPPORTED_LOCALES).toHaveLength(45);
     const enCatalog = getCatalog("en");
     const enKeys = Object.keys(enCatalog).sort();
     expect(enKeys.length).toBeGreaterThan(0);
@@ -39,13 +41,13 @@ describe("i18n catalogs", () => {
     }
   });
 
-  it("marks only Arabic as RTL", () => {
+  it("marks all 6 RTL locales accurately", () => {
     for (const locale of SUPPORTED_LOCALES) {
-      expect(isRtl(locale)).toBe(locale === "ar");
+      expect(isRtl(locale)).toBe(RTL_LOCALES.has(locale));
     }
   });
 
-  it("resolves BCP-47 and script variants accurately", () => {
+  it("resolves BCP-47, African, Asian, and script variants accurately", () => {
     expect(resolveLocale(undefined)).toBe("en");
     expect(resolveLocale("")).toBe("en");
     expect(resolveLocale("pt-BR")).toBe("pt-BR");
@@ -55,17 +57,32 @@ describe("i18n catalogs", () => {
     expect(resolveLocale("zh-TW")).toBe("zh-TW");
     expect(resolveLocale("zh-Hant-HK")).toBe("zh-TW");
     expect(resolveLocale("ar-SA")).toBe("ar");
+    expect(resolveLocale("ar-EG")).toBe("ar-EG");
+    expect(resolveLocale("ar-MA")).toBe("ar-MA");
+    expect(resolveLocale("fr-SN")).toBe("fr-SN");
+    expect(resolveLocale("sw")).toBe("sw-KE");
+    expect(resolveLocale("yo")).toBe("yo-NG");
+    expect(resolveLocale("fa-IR")).toBe("fa");
+    expect(resolveLocale("he-IL")).toBe("he");
+    expect(resolveLocale("iw")).toBe("he");
+    expect(resolveLocale("ur-PK")).toBe("ur");
+    expect(resolveLocale("tl-PH")).toBe("fil");
     expect(resolveLocale("hi-IN")).toBe("hi");
     expect(resolveLocale("xx-YY")).toBe("en");
+    expect(resolveLocale("constructor")).toBe("en");
+    expect(resolveLocale("toString")).toBe("en");
+    expect(resolveLocale("__proto__")).toBe("en");
   });
 
   it("negotiates Accept-Language with q-values", () => {
     expect(negotiateLocale(null)).toBe("en");
+    expect(negotiateLocale("constructor, toString;q=0.9")).toBe("en");
     expect(negotiateLocale("fr-CA, fr;q=0.9, en;q=0.8")).toBe("fr");
     expect(negotiateLocale("en;q=0.5, de-DE;q=0.9")).toBe("de");
     expect(negotiateLocale("de;q=0, ja;q=0.8")).toBe("ja");
     expect(negotiateLocale("zh-Hant-TW, zh;q=0.8")).toBe("zh-TW");
-    expect(negotiateLocale("ar-EG, ar;q=0.9")).toBe("ar");
+    expect(negotiateLocale("ar-EG, ar;q=0.9")).toBe("ar-EG");
+    expect(negotiateLocale("fa-IR, en;q=0.5")).toBe("fa");
     expect(negotiateLocale("xx-YY, *;q=0.5")).toBe("en");
   });
 
@@ -146,7 +163,7 @@ describe("localized maintenance page rendering", () => {
         locale,
       });
       expect(html).toContain(`<html lang="${locale}"`);
-      if (locale === "ar") {
+      if (RTL_LOCALES.has(locale)) {
         expect(html).toContain('dir="rtl"');
       } else {
         expect(html).not.toContain('dir="rtl"');

@@ -1,0 +1,10 @@
+{
+  "contact": "Tuntuɓa: {email}",
+  "expectedCompletion": "Lokacin kammalawa da ake tsammani: {time}",
+  "languageName": "Hausa (Najeriya)",
+  "logoAlt": "Tambari",
+  "message": "Muna gudanar da gyara da aka tsara a halin yanzu. Za mu dawo nan ba da jimawa ba.",
+  "retryNotice": "Da fatan za a sake dubawa nan ba da jimawa ba.",
+  "statusUnavailable": "Sabis ɗin ba ya samuwa na ɗan lokaci",
+  "title": "Yanayin Gyara"
+}

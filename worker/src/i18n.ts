@@ -1,33 +1,63 @@
 // SPDX-FileCopyrightText: 2026 Thomas Vincent <thomasvincent@gmail.com>
 // SPDX-License-Identifier: MIT
 
+import afZA from "./locales/af-ZA.json";
+import amET from "./locales/am-ET.json";
 import ar from "./locales/ar.json";
+import arEG from "./locales/ar-EG.json";
+import arMA from "./locales/ar-MA.json";
+import bn from "./locales/bn.json";
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
+import fa from "./locales/fa.json";
+import fil from "./locales/fil.json";
 import fr from "./locales/fr.json";
+import frMA from "./locales/fr-MA.json";
+import frSN from "./locales/fr-SN.json";
+import haNG from "./locales/ha-NG.json";
+import he from "./locales/he.json";
 import hi from "./locales/hi.json";
 import id from "./locales/id.json";
+import igNG from "./locales/ig-NG.json";
 import it from "./locales/it.json";
 import ja from "./locales/ja.json";
 import ko from "./locales/ko.json";
+import mgMG from "./locales/mg-MG.json";
+import mr from "./locales/mr.json";
+import ms from "./locales/ms.json";
 import nl from "./locales/nl.json";
 import pl from "./locales/pl.json";
 import ptBR from "./locales/pt-BR.json";
 import ru from "./locales/ru.json";
+import rwRW from "./locales/rw-RW.json";
+import soSO from "./locales/so-SO.json";
 import sv from "./locales/sv.json";
+import swKE from "./locales/sw-KE.json";
+import ta from "./locales/ta.json";
+import te from "./locales/te.json";
+import th from "./locales/th.json";
 import tr from "./locales/tr.json";
 import uk from "./locales/uk.json";
+import ur from "./locales/ur.json";
 import vi from "./locales/vi.json";
+import xhZA from "./locales/xh-ZA.json";
+import yoNG from "./locales/yo-NG.json";
 import zhCN from "./locales/zh-CN.json";
 import zhTW from "./locales/zh-TW.json";
+import zuZA from "./locales/zu-ZA.json";
 
 export const SUPPORTED_LOCALES = [
   "en", "de", "es", "fr", "it", "pt-BR", "nl", "ru", "uk",
   "ja", "ko", "zh-CN", "zh-TW", "ar", "hi", "pl", "tr", "sv", "vi", "id",
+  "af-ZA", "am-ET", "ar-EG", "ar-MA", "fr-MA", "fr-SN", "ha-NG", "ig-NG",
+  "mg-MG", "rw-RW", "so-SO", "sw-KE", "xh-ZA", "yo-NG", "zu-ZA",
+  "bn", "fa", "he", "mr", "ta", "te", "th", "ur", "ms", "fil",
 ] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
+
+const RTL_LOCALES = new Set<Locale>(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
 
 export interface LocaleCatalog {
   title: string;
@@ -61,10 +91,53 @@ const CATALOGS: Record<Locale, LocaleCatalog> = {
   sv,
   vi,
   id,
+  "af-ZA": afZA,
+  "am-ET": amET,
+  "ar-EG": arEG,
+  "ar-MA": arMA,
+  "fr-MA": frMA,
+  "fr-SN": frSN,
+  "ha-NG": haNG,
+  "ig-NG": igNG,
+  "mg-MG": mgMG,
+  "rw-RW": rwRW,
+  "so-SO": soSO,
+  "sw-KE": swKE,
+  "xh-ZA": xhZA,
+  "yo-NG": yoNG,
+  "zu-ZA": zuZA,
+  bn,
+  fa,
+  he,
+  mr,
+  ta,
+  te,
+  th,
+  ur,
+  ms,
+  fil,
+};
+
+const BASE_ALIASES: Record<string, Locale> = {
+  af: "af-ZA",
+  am: "am-ET",
+  ha: "ha-NG",
+  ig: "ig-NG",
+  in: "id",
+  iw: "he",
+  mg: "mg-MG",
+  pt: "pt-BR",
+  rw: "rw-RW",
+  so: "so-SO",
+  sw: "sw-KE",
+  tl: "fil",
+  xh: "xh-ZA",
+  yo: "yo-NG",
+  zu: "zu-ZA",
 };
 
 export function isRtl(locale: Locale): boolean {
-  return locale === "ar";
+  return RTL_LOCALES.has(locale);
 }
 
 /**
@@ -94,7 +167,6 @@ export function matchLocale(tag: string | null | undefined): Locale | null {
   ) {
     return "zh-CN";
   }
-  if (lower === "pt" || lower === "pt-br") return "pt-BR";
 
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === lower) return loc;
@@ -102,12 +174,15 @@ export function matchLocale(tag: string | null | undefined): Locale | null {
 
   const base = lower.split("-")[0] ?? "";
   if (base === "zh") {
-    if (lower.includes("hant") || lower.includes("-tw") || lower.includes("-hk") || lower.includes("-mo")) {
+    if (lower.includes("-hans")) return "zh-CN";
+    if (lower.includes("-hant") || lower.includes("-tw") || lower.includes("-hk") || lower.includes("-mo")) {
       return "zh-TW";
     }
     return "zh-CN";
   }
-  if (base === "pt") return "pt-BR";
+  if (Object.hasOwn(BASE_ALIASES, base)) {
+    return BASE_ALIASES[base] ?? null;
+  }
 
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === base) return loc;

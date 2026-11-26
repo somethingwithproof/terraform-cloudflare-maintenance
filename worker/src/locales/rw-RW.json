@@ -1,0 +1,10 @@
+{
+  "contact": "Aho mwatwandikira: {email}",
+  "expectedCompletion": "Igihe biteganyijwe kurangirira: {time}",
+  "languageName": "Kinyarwanda (U Rwanda)",
+  "logoAlt": "Ikirango",
+  "message": "Kuri ubu turimo gukora ivugurura ryateguwe. Turagaruka mu kanya gato.",
+  "retryNotice": "Nyamuneka wongere ugerageze mu kanya.",
+  "statusUnavailable": "Serivisi ntiboneka mu gihe gito",
+  "title": "Igihe cyo Gusana"
+}
