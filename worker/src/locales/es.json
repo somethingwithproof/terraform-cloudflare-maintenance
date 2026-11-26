@@ -1,0 +1,10 @@
+{
+  "contact": "Contacto: {email}",
+  "expectedCompletion": "Finalización prevista: {time}",
+  "languageName": "Español",
+  "logoAlt": "Logotipo",
+  "message": "Actualmente estamos realizando mantenimiento programado. Volveremos en breve.",
+  "retryNotice": "Vuelve a intentarlo pronto.",
+  "statusUnavailable": "Servicio temporalmente no disponible",
+  "title": "Modo de mantenimiento"
+}

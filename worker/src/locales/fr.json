@@ -1,0 +1,10 @@
+{
+  "contact": "Contact : {email}",
+  "expectedCompletion": "Fin prévue : {time}",
+  "languageName": "Français",
+  "logoAlt": "Logo",
+  "message": "Une maintenance planifiée est en cours. Nous serons de retour sous peu.",
+  "retryNotice": "Veuillez réessayer bientôt.",
+  "statusUnavailable": "Service temporairement indisponible",
+  "title": "Mode maintenance"
+}

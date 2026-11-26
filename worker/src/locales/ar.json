@@ -1,0 +1,10 @@
+{
+  "contact": "للتواصل: {email}",
+  "expectedCompletion": "الانتهاء المتوقع: {time}",
+  "languageName": "العربية",
+  "logoAlt": "الشعار",
+  "message": "نجري حالياً صيانة مجدولة. سنعود قريباً.",
+  "retryNotice": "يرجى المحاولة مرة أخرى قريباً.",
+  "statusUnavailable": "الخدمة غير متوفرة مؤقتاً",
+  "title": "وضع الصيانة"
+}

@@ -1,0 +1,10 @@
+{
+  "contact": "문의: {email}",
+  "expectedCompletion": "완료 예정 시간: {time}",
+  "languageName": "한국어",
+  "logoAlt": "로고",
+  "message": "현재 정기 점검을 진행하고 있습니다. 곧 서비스를 재개하겠습니다.",
+  "retryNotice": "잠시 후 다시 확인해 주세요.",
+  "statusUnavailable": "일시적으로 서비스를 이용할 수 없습니다",
+  "title": "점검 모드"
+}

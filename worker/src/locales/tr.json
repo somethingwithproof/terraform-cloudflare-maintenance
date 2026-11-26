@@ -1,0 +1,10 @@
+{
+  "contact": "İletişim: {email}",
+  "expectedCompletion": "Tahmini tamamlanma: {time}",
+  "languageName": "Türkçe",
+  "logoAlt": "Logo",
+  "message": "Şu anda planlı bakım çalışması yapıyoruz. Kısa süre içinde geri döneceğiz.",
+  "retryNotice": "Lütfen kısa süre sonra tekrar kontrol edin.",
+  "statusUnavailable": "Hizmet geçici olarak kullanılamıyor",
+  "title": "Bakım Modu"
+}

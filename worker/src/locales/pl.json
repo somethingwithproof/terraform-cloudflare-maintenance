@@ -1,0 +1,10 @@
+{
+  "contact": "Kontakt: {email}",
+  "expectedCompletion": "Przewidywane zakończenie: {time}",
+  "languageName": "Polski",
+  "logoAlt": "Logo",
+  "message": "Obecnie prowadzimy zaplanowane prace konserwacyjne. Wrócimy wkrótce.",
+  "retryNotice": "Prosimy zajrzeć ponownie wkrótce.",
+  "statusUnavailable": "Usługa tymczasowo niedostępna",
+  "title": "Tryb konserwacji"
+}

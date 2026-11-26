@@ -1,0 +1,10 @@
+{
+  "contact": "Kontakt: {email}",
+  "expectedCompletion": "Beräknas klart: {time}",
+  "languageName": "Svenska",
+  "logoAlt": "Logotyp",
+  "message": "Vi utför för närvarande planerat underhåll. Vi är snart tillbaka.",
+  "retryNotice": "Försök igen om en stund.",
+  "statusUnavailable": "Tjänsten är tillfälligt otillgänglig",
+  "title": "Underhållsläge"
+}

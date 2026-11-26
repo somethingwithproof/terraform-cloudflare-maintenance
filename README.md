@@ -603,6 +603,14 @@ npm test                                # Worker and notify.sh tests
 npm run typecheck && npm run lint       # tsc --noEmit and typescript-eslint
 ```
 
+## Localization
+
+The Cloudflare Worker bundles 20 Tier 1 locales (`en`, `de`, `es`, `fr`, `it`, `pt-BR`, `nl`, `ru`, `uk`, `ja`, `ko`, `zh-CN`, `zh-TW`, `ar`, `hi`, `pl`, `tr`, `sv`, `vi`, `id`) and negotiates the response language from the incoming `Accept-Language` header (with `Content-Language` and `Vary: Accept-Language` response headers).
+
+- Default maintenance page copy (`maintenance_title`, `maintenance_message`), expected completion label, contact label, and logo alt text localize automatically to the negotiated locale.
+- Arabic (`ar`) renders with `<html lang="ar" dir="rtl">`.
+- Custom `maintenance_title`, `maintenance_message`, per-page `pages`, and runtime toggle overrides remain preserved verbatim for full backward compatibility.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request titles, sign-off,
