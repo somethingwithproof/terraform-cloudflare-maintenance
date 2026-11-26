@@ -680,8 +680,9 @@ function matchLocale(tag) {
     }
     return "zh-CN";
   }
-  const aliased = BASE_ALIASES[base];
-  if (aliased) return aliased;
+  if (Object.hasOwn(BASE_ALIASES, base)) {
+    return BASE_ALIASES[base] ?? null;
+  }
   for (const loc of SUPPORTED_LOCALES) {
     if (loc.toLowerCase() === base) return loc;
   }

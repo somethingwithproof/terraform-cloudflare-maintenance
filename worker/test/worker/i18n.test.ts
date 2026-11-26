@@ -69,10 +69,14 @@ describe("i18n catalogs", () => {
     expect(resolveLocale("tl-PH")).toBe("fil");
     expect(resolveLocale("hi-IN")).toBe("hi");
     expect(resolveLocale("xx-YY")).toBe("en");
+    expect(resolveLocale("constructor")).toBe("en");
+    expect(resolveLocale("toString")).toBe("en");
+    expect(resolveLocale("__proto__")).toBe("en");
   });
 
   it("negotiates Accept-Language with q-values", () => {
     expect(negotiateLocale(null)).toBe("en");
+    expect(negotiateLocale("constructor, toString;q=0.9")).toBe("en");
     expect(negotiateLocale("fr-CA, fr;q=0.9, en;q=0.8")).toBe("fr");
     expect(negotiateLocale("en;q=0.5, de-DE;q=0.9")).toBe("de");
     expect(negotiateLocale("de;q=0, ja;q=0.8")).toBe("ja");
