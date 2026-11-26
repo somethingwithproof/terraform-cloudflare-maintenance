@@ -32,7 +32,7 @@ Enterprise-grade maintenance mode solution for Cloudflare infrastructure with Op
 - [Features](#features)
 - [Security](#security)
 - [Requirements](#requirements)
-- [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Usage](#usage)
   - [Basic Usage](#basic-usage)
   - [Advanced Configuration](#advanced-configuration)
