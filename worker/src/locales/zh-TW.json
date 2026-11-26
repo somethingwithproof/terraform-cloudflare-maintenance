@@ -1,0 +1,10 @@
+{
+  "contact": "聯絡方式：{email}",
+  "expectedCompletion": "預計完成時間：{time}",
+  "languageName": "繁體中文",
+  "logoAlt": "標誌",
+  "message": "我們目前正在進行排程維護，很快就會恢復服務。",
+  "retryNotice": "請稍後再回來查看。",
+  "statusUnavailable": "服務暫時無法使用",
+  "title": "維護模式"
+}

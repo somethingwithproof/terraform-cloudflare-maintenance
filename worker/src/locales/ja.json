@@ -1,0 +1,10 @@
+{
+  "contact": "お問い合わせ: {email}",
+  "expectedCompletion": "完了予定時刻: {time}",
+  "languageName": "日本語",
+  "logoAlt": "ロゴ",
+  "message": "現在、定期メンテナンスを実施しております。まもなく復旧いたします。",
+  "retryNotice": "しばらく経ってから再度アクセスしてください。",
+  "statusUnavailable": "現在サービスを一時停止しています",
+  "title": "メンテナンスモード"
+}

@@ -5,6 +5,7 @@
 // (dist/index.js) and sets every Env value as a binding; see main.tf.
 
 import { renderPage } from "./html";
+import { negotiateLocale } from "./i18n";
 import { isAllowedIp } from "./ip";
 import { parsePages, selectPage } from "./pages";
 import { cacheTtlSeconds, readOverride } from "./toggle";
@@ -121,6 +122,7 @@ export async function handleRequest(request: Request, env: Env, now: Date = new 
     return fetch(request);
   }
 
+  const locale = negotiateLocale(request.headers.get("Accept-Language"));
   const page = selectPage(parsePages(env.PAGES), url);
   const html = renderPage({
     title: title ?? page?.title ?? env.MAINTENANCE_TITLE ?? "",
@@ -129,13 +131,19 @@ export async function handleRequest(request: Request, env: Env, now: Date = new 
     customCss: env.CUSTOM_CSS ?? "",
     logoUrl: env.LOGO_URL ?? "",
     windowEnd: window?.end ?? null,
+    locale,
   });
 
   // 503 tells clients and crawlers the outage is temporary; Retry-After says
   // when to come back. HEAD gets the same status and headers without a body.
   return new Response(request.method === "HEAD" ? null : html, {
     status: 503,
-    headers: { ...PAGE_HEADERS, "Retry-After": String(retryAfter) },
+    headers: {
+      ...PAGE_HEADERS,
+      "Content-Language": locale,
+      Vary: "Accept-Language",
+      "Retry-After": String(retryAfter),
+    },
   });
 }
 

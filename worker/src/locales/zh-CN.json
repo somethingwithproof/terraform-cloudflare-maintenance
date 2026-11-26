@@ -1,0 +1,10 @@
+{
+  "contact": "联系方式: {email}",
+  "expectedCompletion": "预计完成时间: {time}",
+  "languageName": "简体中文",
+  "logoAlt": "徽标",
+  "message": "我们目前正在进行计划维护，服务将很快恢复。",
+  "retryNotice": "请稍后再试。",
+  "statusUnavailable": "服务暂不可用",
+  "title": "维护模式"
+}

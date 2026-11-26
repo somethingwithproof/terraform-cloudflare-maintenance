@@ -1,0 +1,10 @@
+{
+  "contact": "Contact: {email}",
+  "expectedCompletion": "Verwachte afronding: {time}",
+  "languageName": "Nederlands",
+  "logoAlt": "Logo",
+  "message": "We voeren momenteel gepland onderhoud uit. We zijn snel weer terug.",
+  "retryNotice": "Probeer het binnenkort opnieuw.",
+  "statusUnavailable": "Dienst tijdelijk niet beschikbaar",
+  "title": "Onderhoudsmodus"
+}

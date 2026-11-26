@@ -4,6 +4,8 @@
 // Escaping and rendering of the maintenance page. Every value from the
 // bindings is escaped for the context it lands in.
 
+import { formatMessage, getCatalog, isRtl, type Locale } from "./i18n";
+
 export function escapeHtml(str: string | null | undefined): string {
   if (!str) return "";
   return str
@@ -55,29 +57,53 @@ export interface PageContent {
   logoUrl: string;
   /** End of the open window, shown as the expected completion time. */
   windowEnd: Date | null;
+  /** Negotiated BCP-47 locale; defaults to "en". */
+  locale?: Locale;
 }
 
 export const DEFAULT_TITLE = "Maintenance Mode";
 export const DEFAULT_MESSAGE =
   "We are currently performing scheduled maintenance. We will be back shortly.";
 
+function renderContactLine(template: string, email: string): string {
+  const link = `<a href="mailto:${email}">${email}</a>`;
+  const marker = "{email}";
+  const idx = template.indexOf(marker);
+  if (idx === -1) {
+    return `${escapeHtml(template)} ${link}`;
+  }
+  const before = escapeHtml(template.slice(0, idx));
+  const after = escapeHtml(template.slice(idx + marker.length));
+  return `${before}${link}${after}`;
+}
+
 export function renderPage(page: PageContent): string {
-  const title = escapeHtml(page.title) || DEFAULT_TITLE;
-  const message = escapeHtml(page.message) || DEFAULT_MESSAGE;
+  const locale: Locale = page.locale ?? "en";
+  const catalog = getCatalog(locale);
+  const dirAttr = isRtl(locale) ? ' dir="rtl"' : "";
+
+  const rawTitle = page.title.trim();
+  const useDefaultTitle = rawTitle === "" || rawTitle === DEFAULT_TITLE;
+  const title = useDefaultTitle ? escapeHtml(catalog.title) : escapeHtml(page.title);
+
+  const rawMessage = page.message.trim();
+  const useDefaultMessage = rawMessage === "" || rawMessage === DEFAULT_MESSAGE;
+  const message = useDefaultMessage ? escapeHtml(catalog.message) : escapeHtml(page.message);
+
   const email = sanitizeEmail(page.contactEmail);
   // Only HTTPS logos; the URL is HTML-escaped for the attribute it sits in.
   const logo = isValidHttpsUrl(page.logoUrl)
-    ? `<img src="${escapeHtml(page.logoUrl)}" alt="Logo" style="max-width: 200px; margin-bottom: 1rem;">`
+    ? `<img src="${escapeHtml(page.logoUrl)}" alt="${escapeHtml(catalog.logoAlt)}" style="max-width: 200px; margin-bottom: 1rem;">`
     : "";
   const completion = page.windowEnd
-    ? `<p style="font-size: 0.9rem; color: #888;">Expected completion: ${page.windowEnd.toUTCString()}</p>`
+    ? `<p style="font-size: 0.9rem; color: #888;">${escapeHtml(formatMessage(catalog.expectedCompletion, { time: page.windowEnd.toUTCString() }))}</p>`
     : "";
   const contact = email
-    ? `<p class="contact">Contact: <a href="mailto:${email}">${email}</a></p>`
+    ? `<p class="contact">${renderContactLine(catalog.contact, email)}</p>`
     : "";
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}"${dirAttr}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

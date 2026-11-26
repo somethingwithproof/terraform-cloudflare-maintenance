@@ -1,0 +1,10 @@
+{
+  "contact": "Liên hệ: {email}",
+  "expectedCompletion": "Dự kiến hoàn tất: {time}",
+  "languageName": "Tiếng Việt",
+  "logoAlt": "Logo",
+  "message": "Chúng tôi hiện đang thực hiện bảo trì theo lịch trình. Chúng tôi sẽ sớm quay lại.",
+  "retryNotice": "Vui lòng quay lại sau ít phút.",
+  "statusUnavailable": "Dịch vụ tạm thời không khả dụng",
+  "title": "Chế độ bảo trì"
+}

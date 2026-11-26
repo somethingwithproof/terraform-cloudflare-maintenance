@@ -1,0 +1,10 @@
+{
+  "contact": "Kontakt: {email}",
+  "expectedCompletion": "Voraussichtliches Ende: {time}",
+  "languageName": "Deutsch",
+  "logoAlt": "Logo",
+  "message": "Wir führen derzeit geplante Wartungsarbeiten durch. Wir sind in Kürze wieder für Sie da.",
+  "retryNotice": "Bitte versuchen Sie es bald erneut.",
+  "statusUnavailable": "Dienst vorübergehend nicht verfügbar",
+  "title": "Wartungsmodus"
+}
