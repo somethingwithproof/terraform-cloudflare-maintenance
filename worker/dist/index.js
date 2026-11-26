@@ -73,6 +73,18 @@ var bn_default = {
   title: "\u09B0\u0995\u09CD\u09B7\u09A3\u09BE\u09AC\u09C7\u0995\u09CD\u09B7\u09A3 \u09AE\u09CB\u09A1"
 };
 
+// src/locales/bs.json
+var bs_default = {
+  contact: "Kontakt: {email}",
+  expectedCompletion: "O\u010Dekivani zavr\u0161etak: {time}",
+  languageName: "Bosanski",
+  logoAlt: "Logotip",
+  message: "Trenutno izvodimo planirano odr\u017Eavanje. Uskoro \u0107emo ponovo biti dostupni.",
+  retryNotice: "Molimo provjerite ponovo uskoro.",
+  statusUnavailable: "Usluga je privremeno nedostupna",
+  title: "Re\u017Eim odr\u017Eavanja"
+};
+
 // src/locales/de.json
 var de_default = {
   contact: "Kontakt: {email}",
@@ -203,6 +215,18 @@ var hi_default = {
   retryNotice: "\u0915\u0943\u092A\u092F\u093E \u0936\u0940\u0918\u094D\u0930 \u0939\u0940 \u092A\u0941\u0928\u0903 \u091C\u093E\u0902\u091A\u0947\u0902\u0964",
   statusUnavailable: "\u0938\u0947\u0935\u093E \u0905\u0938\u094D\u0925\u093E\u092F\u0940 \u0930\u0942\u092A \u0938\u0947 \u0905\u0928\u0941\u092A\u0932\u092C\u094D\u0927 \u0939\u0948",
   title: "\u0930\u0916\u0930\u0916\u093E\u0935 \u092E\u094B\u0921"
+};
+
+// src/locales/hr.json
+var hr_default = {
+  contact: "Kontakt: {email}",
+  expectedCompletion: "O\u010Dekivani zavr\u0161etak: {time}",
+  languageName: "Hrvatski",
+  logoAlt: "Logotip",
+  message: "Trenuta\u010Dno provodimo planirano odr\u017Eavanje sustava. Uskoro \u0107emo ponovno biti dostupni.",
+  retryNotice: "Molimo provjerite ponovno uskoro.",
+  statusUnavailable: "Usluga je privremeno nedostupna",
+  title: "Na\u010Din odr\u017Eavanja"
 };
 
 // src/locales/id.json
@@ -371,6 +395,18 @@ var so_SO_default = {
   retryNotice: "Fadlan soo hubi dhowaan.",
   statusUnavailable: "Adeeggu si ku-meel-gaar ah looma heli karo",
   title: "Xaaladda Dayactirka"
+};
+
+// src/locales/sr.json
+var sr_default = {
+  contact: "\u041A\u043E\u043D\u0442\u0430\u043A\u0442: {email}",
+  expectedCompletion: "\u041E\u0447\u0435\u043A\u0438\u0432\u0430\u043D\u0438 \u0437\u0430\u0432\u0440\u0448\u0435\u0442\u0430\u043A: {time}",
+  languageName: "\u0421\u0440\u043F\u0441\u043A\u0438",
+  logoAlt: "\u041B\u043E\u0433\u043E\u0442\u0438\u043F",
+  message: "\u0422\u0440\u0435\u043D\u0443\u0442\u043D\u043E \u0438\u0437\u0432\u043E\u0434\u0438\u043C\u043E \u043F\u043B\u0430\u043D\u0438\u0440\u0430\u043D\u043E \u043E\u0434\u0440\u0436\u0430\u0432\u0430\u045A\u0435 \u0441\u0438\u0441\u0442\u0435\u043C\u0430. \u0423\u0441\u043A\u043E\u0440\u043E \u045B\u0435\u043C\u043E \u043F\u043E\u043D\u043E\u0432\u043E \u0431\u0438\u0442\u0438 \u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0438.",
+  retryNotice: "\u041C\u043E\u043B\u0438\u043C\u043E \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u0435 \u043F\u043E\u043D\u043E\u0432\u043E \u0443\u0441\u043A\u043E\u0440\u043E.",
+  statusUnavailable: "\u0423\u0441\u043B\u0443\u0433\u0430 \u0458\u0435 \u043F\u0440\u0438\u0432\u0440\u0435\u043C\u0435\u043D\u043E \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430",
+  title: "\u0420\u0435\u0436\u0438\u043C \u043E\u0434\u0440\u0436\u0430\u0432\u0430\u045A\u0430"
 };
 
 // src/locales/sv.json
@@ -587,7 +623,10 @@ var SUPPORTED_LOCALES = [
   "th",
   "ur",
   "ms",
-  "fil"
+  "fil",
+  "bs",
+  "hr",
+  "sr"
 ];
 var RTL_LOCALES = /* @__PURE__ */ new Set(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
 var CATALOGS = {
@@ -635,7 +674,10 @@ var CATALOGS = {
   th: th_default,
   ur: ur_default,
   ms: ms_default,
-  fil: fil_default
+  fil: fil_default,
+  bs: bs_default,
+  hr: hr_default,
+  sr: sr_default
 };
 var BASE_ALIASES = {
   af: "af-ZA",

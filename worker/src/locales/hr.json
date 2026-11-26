@@ -1,0 +1,10 @@
+{
+  "contact": "Kontakt: {email}",
+  "expectedCompletion": "Očekivani završetak: {time}",
+  "languageName": "Hrvatski",
+  "logoAlt": "Logotip",
+  "message": "Trenutačno provodimo planirano održavanje sustava. Uskoro ćemo ponovno biti dostupni.",
+  "retryNotice": "Molimo provjerite ponovno uskoro.",
+  "statusUnavailable": "Usluga je privremeno nedostupna",
+  "title": "Način održavanja"
+}
