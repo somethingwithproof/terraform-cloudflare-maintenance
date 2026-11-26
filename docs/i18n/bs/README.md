@@ -21,7 +21,7 @@ Rješenje za režim održavanja za aplikacije hostirane na Cloudflare infrastruk
 provider "cloudflare" {}
 
 module "maintenance" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v4.0.0"
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=fc7007e19c4b6d63fac468f1b1349dacecc7336f"
 
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id

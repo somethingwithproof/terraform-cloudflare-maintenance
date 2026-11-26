@@ -127,7 +127,7 @@ tofu apply
 provider "cloudflare" {} # reads CLOUDFLARE_API_TOKEN
 
 module "maintenance" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v4.0.0" # x-release-please-version
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=fc7007e19c4b6d63fac468f1b1349dacecc7336f" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
@@ -150,7 +150,7 @@ For more advanced usage with scheduled maintenance windows, custom styling, and 
 
 ```hcl
 module "maintenance" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v4.0.0" # x-release-please-version
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=fc7007e19c4b6d63fac468f1b1349dacecc7336f" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id = var.cloudflare_zone_id
@@ -193,7 +193,7 @@ See the [scheduled maintenance example](examples/scheduled-maintenance/) for a c
 
 ```hcl
 module "maintenance" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=v4.0.0" # x-release-please-version
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git?ref=fc7007e19c4b6d63fac468f1b1349dacecc7336f" # x-release-please-version
   
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id
@@ -215,7 +215,7 @@ module "maintenance" {
 
 # Optional: Configure notifications
 module "maintenance_notifications" {
-  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git//modules/notifications?ref=v4.0.0" # x-release-please-version
+  source = "git::https://github.com/somethingwithproof/terraform-cloudflare-maintenance.git//modules/notifications?ref=fc7007e19c4b6d63fac468f1b1349dacecc7336f" # x-release-please-version
 
   # Keys are non-secret names; the URLs are secrets.
   notification_urls = {
