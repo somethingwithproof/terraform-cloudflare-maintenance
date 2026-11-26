@@ -1,0 +1,10 @@
+{
+  "contact": "Kpọtụrụ: {email}",
+  "expectedCompletion": "Oge a tụrụ anya mmecha: {time}",
+  "languageName": "Igbo (Naịjịrịa)",
+  "logoAlt": "Akara",
+  "message": "Anyị na-arụ ọrụ ndozi a haziri ahazi ugbu a. Anyị ga-alọghachi n'oge na-adịghị anya.",
+  "retryNotice": "Biko lelee ọzọ n'oge na-adịghị anya.",
+  "statusUnavailable": "Ọrụ adịghị nwa oge",
+  "title": "Ọnọdụ Ndozi"
+}

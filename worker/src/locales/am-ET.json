@@ -1,0 +1,10 @@
+{
+  "contact": "ያግኙን: {email}",
+  "expectedCompletion": "የሚጠበቅበት ማጠናቀቂያ: {time}",
+  "languageName": "አማርኛ (ኢትዮጵያ)",
+  "logoAlt": "አርማ",
+  "message": "በአሁኑ ጊዜ የታቀደ ጥገና እያከናወንን ነው። በቅርቡ እንመለሳለን።",
+  "retryNotice": "እባክዎ በቅርቡ ተመልሰው ይሞክሩ።",
+  "statusUnavailable": "አገልግሎቱ ለጊዜው አይገኝም",
+  "title": "የጥገና ሁኔታ"
+}

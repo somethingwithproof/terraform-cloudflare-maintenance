@@ -1,0 +1,10 @@
+{
+  "contact": "Mawasiliano: {email}",
+  "expectedCompletion": "Kukamilika kunakotarajiwa: {time}",
+  "languageName": "Kiswahili (Kenya)",
+  "logoAlt": "Nembo",
+  "message": "Kwa sasa tunafanya matengenezo yaliyopangwa. Tutarudi hivi karibuni.",
+  "retryNotice": "Tafadhali angalia tena hivi karibuni.",
+  "statusUnavailable": "Huduma haipatikani kwa muda",
+  "title": "Hali ya Matengenezo"
+}

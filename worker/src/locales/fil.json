@@ -1,0 +1,10 @@
+{
+  "contact": "Makipag-ugnayan: {email}",
+  "expectedCompletion": "Inaasahang pagtatapos: {time}",
+  "languageName": "Filipino",
+  "logoAlt": "Logo",
+  "message": "Kasalukuyan kaming nagsasagawa ng nakaiskedyul na pagpapanatili. Babalik kami sa ilang sandali.",
+  "retryNotice": "Pakisuri muli mamaya.",
+  "statusUnavailable": "Pansamantalang hindi available ang serbisyo",
+  "title": "Mode ng Pagpapanatili"
+}

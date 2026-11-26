@@ -1,0 +1,10 @@
+{
+  "contact": "Hubungi: {email}",
+  "expectedCompletion": "Jangkaan siap: {time}",
+  "languageName": "Bahasa Melayu",
+  "logoAlt": "Logo",
+  "message": "Kami sedang menjalankan penyelenggaraan berjadual. Kami akan kembali sebentar lagi.",
+  "retryNotice": "Sila semak semula sebentar lagi.",
+  "statusUnavailable": "Perkhidmatan tidak tersedia buat sementara waktu",
+  "title": "Mod Penyelenggaraan"
+}

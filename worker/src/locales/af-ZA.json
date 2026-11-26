@@ -1,0 +1,10 @@
+{
+  "contact": "Kontak: {email}",
+  "expectedCompletion": "Verwagte voltooiing: {time}",
+  "languageName": "Afrikaans (Suid-Afrika)",
+  "logoAlt": "Logo",
+  "message": "Ons voer tans geskeduleerde onderhoud uit. Ons is binnekort terug.",
+  "retryNotice": "Loer asseblief gou weer in.",
+  "statusUnavailable": "Diens tydelik onbeskikbaar",
+  "title": "Onderhoudsmodus"
+}

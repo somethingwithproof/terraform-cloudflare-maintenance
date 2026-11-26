@@ -1,0 +1,10 @@
+{
+  "contact": "Xiriir: {email}",
+  "expectedCompletion": "Waqtiga la filayo inuu dhammaado: {time}",
+  "languageName": "Soomaali (Soomaaliya)",
+  "logoAlt": "Astaan",
+  "message": "Waxaan hadda wadnaa dayactir qorshaysan. Waxaan soo noqon doonnaa dhowaan.",
+  "retryNotice": "Fadlan soo hubi dhowaan.",
+  "statusUnavailable": "Adeeggu si ku-meel-gaar ah looma heli karo",
+  "title": "Xaaladda Dayactirka"
+}

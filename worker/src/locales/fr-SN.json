@@ -1,0 +1,10 @@
+{
+  "contact": "Contact : {email}",
+  "expectedCompletion": "Fin prévue : {time}",
+  "languageName": "Français (Sénégal)",
+  "logoAlt": "Logo",
+  "message": "Nous effectuons actuellement une maintenance planifiée. Nous serons bientôt de retour.",
+  "retryNotice": "Veuillez revenir bientôt.",
+  "statusUnavailable": "Service temporairement indisponible",
+  "title": "Mode maintenance"
+}

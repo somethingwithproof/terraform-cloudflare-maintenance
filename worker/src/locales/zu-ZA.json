@@ -1,0 +1,10 @@
+{
+  "contact": "Xhumana: {email}",
+  "expectedCompletion": "Ukuqedwa okulindelekile: {time}",
+  "languageName": "isiZulu (iNingizimu Afrika)",
+  "logoAlt": "Ilogo",
+  "message": "Okwamanje senza ukulungisa okuhleliwe. Sizobuya maduze.",
+  "retryNotice": "Sicela uphinde uhlole maduze.",
+  "statusUnavailable": "Isevisi ayitholakali okwesikhashana",
+  "title": "Imodi Yokulungisa"
+}
