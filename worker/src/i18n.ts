@@ -127,6 +127,7 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
   if (!acceptLanguage) return "en";
 
   const weighted: { tag: string; q: number; index: number }[] = [];
+  const excluded = new Set<Locale>();
   const parts = acceptLanguage.split(",");
   for (let i = 0; i < parts.length; i += 1) {
     const raw = parts[i]?.trim();
@@ -148,16 +149,27 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
         q = parsed;
       }
     }
-    if (!valid || q === 0) continue;
+    if (!valid) continue;
+    if (q === 0) {
+      const denied = matchLocale(tag);
+      if (denied) excluded.add(denied);
+      continue;
+    }
     weighted.push({ tag, q, index: i });
   }
 
   weighted.sort((a, b) => (b.q !== a.q ? b.q - a.q : a.index - b.index));
 
   for (const entry of weighted) {
-    if (entry.tag === "*") return "en";
+    if (entry.tag === "*") {
+      if (!excluded.has("en")) return "en";
+      for (const loc of SUPPORTED_LOCALES) {
+        if (!excluded.has(loc)) return loc;
+      }
+      return "en";
+    }
     const matched = matchLocale(entry.tag);
-    if (matched) return matched;
+    if (matched && !excluded.has(matched)) return matched;
   }
   return "en";
 }
@@ -167,9 +179,7 @@ export function getCatalog(locale: Locale = "en"): LocaleCatalog {
 }
 
 export function formatMessage(template: string, params: Record<string, string>): string {
-  let out = template;
-  for (const [key, value] of Object.entries(params)) {
-    out = out.replaceAll(`{${key}}`, value);
-  }
-  return out;
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key: string) =>
+    Object.hasOwn(params, key) ? (params[key] ?? match) : match,
+  );
 }

@@ -322,6 +322,7 @@ __name(matchLocale, "matchLocale");
 function negotiateLocale(acceptLanguage) {
   if (!acceptLanguage) return "en";
   const weighted = [];
+  const excluded = /* @__PURE__ */ new Set();
   const parts = acceptLanguage.split(",");
   for (let i = 0; i < parts.length; i += 1) {
     const raw = parts[i]?.trim();
@@ -342,14 +343,25 @@ function negotiateLocale(acceptLanguage) {
         q = parsed;
       }
     }
-    if (!valid || q === 0) continue;
+    if (!valid) continue;
+    if (q === 0) {
+      const denied = matchLocale(tag);
+      if (denied) excluded.add(denied);
+      continue;
+    }
     weighted.push({ tag, q, index: i });
   }
   weighted.sort((a, b) => b.q !== a.q ? b.q - a.q : a.index - b.index);
   for (const entry of weighted) {
-    if (entry.tag === "*") return "en";
+    if (entry.tag === "*") {
+      if (!excluded.has("en")) return "en";
+      for (const loc of SUPPORTED_LOCALES) {
+        if (!excluded.has(loc)) return loc;
+      }
+      return "en";
+    }
     const matched = matchLocale(entry.tag);
-    if (matched) return matched;
+    if (matched && !excluded.has(matched)) return matched;
   }
   return "en";
 }
@@ -359,11 +371,10 @@ function getCatalog(locale = "en") {
 }
 __name(getCatalog, "getCatalog");
 function formatMessage(template, params) {
-  let out = template;
-  for (const [key, value] of Object.entries(params)) {
-    out = out.replaceAll(`{${key}}`, value);
-  }
-  return out;
+  return template.replace(
+    /\{([a-zA-Z0-9_]+)\}/g,
+    (match, key) => Object.hasOwn(params, key) ? params[key] ?? match : match
+  );
 }
 __name(formatMessage, "formatMessage");
 
