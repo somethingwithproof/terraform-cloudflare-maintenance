@@ -7,6 +7,7 @@ import ar from "./locales/ar.json";
 import arEG from "./locales/ar-EG.json";
 import arMA from "./locales/ar-MA.json";
 import bn from "./locales/bn.json";
+import bs from "./locales/bs.json";
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
@@ -18,6 +19,7 @@ import frSN from "./locales/fr-SN.json";
 import haNG from "./locales/ha-NG.json";
 import he from "./locales/he.json";
 import hi from "./locales/hi.json";
+import hr from "./locales/hr.json";
 import id from "./locales/id.json";
 import igNG from "./locales/ig-NG.json";
 import it from "./locales/it.json";
@@ -32,6 +34,7 @@ import ptBR from "./locales/pt-BR.json";
 import ru from "./locales/ru.json";
 import rwRW from "./locales/rw-RW.json";
 import soSO from "./locales/so-SO.json";
+import sr from "./locales/sr.json";
 import sv from "./locales/sv.json";
 import swKE from "./locales/sw-KE.json";
 import ta from "./locales/ta.json";
@@ -53,6 +56,7 @@ export const SUPPORTED_LOCALES = [
   "af-ZA", "am-ET", "ar-EG", "ar-MA", "fr-MA", "fr-SN", "ha-NG", "ig-NG",
   "mg-MG", "rw-RW", "so-SO", "sw-KE", "xh-ZA", "yo-NG", "zu-ZA",
   "bn", "fa", "he", "mr", "ta", "te", "th", "ur", "ms", "fil",
+  "bs", "hr", "sr",
 ] as const;
 
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -116,6 +120,9 @@ const CATALOGS: Record<Locale, LocaleCatalog> = {
   ur,
   ms,
   fil,
+  bs,
+  hr,
+  sr,
 };
 
 const BASE_ALIASES: Record<string, Locale> = {

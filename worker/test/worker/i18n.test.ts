@@ -22,8 +22,8 @@ function extractPlaceholders(value: string): string[] {
 const RTL_LOCALES = new Set(["ar", "ar-EG", "ar-MA", "fa", "he", "ur"]);
 
 describe("i18n catalogs", () => {
-  it("supports all 45 locales with 100% key and placeholder parity", () => {
-    expect(SUPPORTED_LOCALES).toHaveLength(45);
+  it("supports all 48 locales with 100% key and placeholder parity", () => {
+    expect(SUPPORTED_LOCALES).toHaveLength(48);
     const enCatalog = getCatalog("en");
     const enKeys = Object.keys(enCatalog).sort();
     expect(enKeys.length).toBeGreaterThan(0);
@@ -68,6 +68,16 @@ describe("i18n catalogs", () => {
     expect(resolveLocale("ur-PK")).toBe("ur");
     expect(resolveLocale("tl-PH")).toBe("fil");
     expect(resolveLocale("hi-IN")).toBe("hi");
+    expect(resolveLocale("bs")).toBe("bs");
+    expect(resolveLocale("bs-BA")).toBe("bs");
+    expect(resolveLocale("hr")).toBe("hr");
+    expect(resolveLocale("hr-HR")).toBe("hr");
+    expect(resolveLocale("sr")).toBe("sr");
+    expect(resolveLocale("sr-RS")).toBe("sr");
+    expect(resolveLocale("sr-Cyrl")).toBe("sr");
+    expect(resolveLocale("sr-Latn")).toBe("sr");
+    expect(resolveLocale("sr-Cyrl-RS")).toBe("sr");
+    expect(resolveLocale("sr-Latn-RS")).toBe("sr");
     expect(resolveLocale("xx-YY")).toBe("en");
     expect(resolveLocale("constructor")).toBe("en");
     expect(resolveLocale("toString")).toBe("en");
